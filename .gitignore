@@ -1,0 +1,9 @@
+.gradle/
+.idea/
+.intellijPlatform/
+.kotlin/
+allure-results/
+build/
+out/
+*.iml
+.DS_Store

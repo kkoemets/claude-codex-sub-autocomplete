@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a focused improvement to subscription-backed autocomplete.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the editing workflow that is currently difficult.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain what should happen from the user's point of view.
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Context and tradeoffs
+      description: Note provider, latency, privacy, context-budget, or IntelliJ compatibility implications.
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Project boundaries
+      options:
+        - label: The proposal preserves explicit provider selection and does not silently introduce API-key billing.
+          required: true
+        - label: The request contains no private code, prompts, credentials, or authentication output.
+          required: true

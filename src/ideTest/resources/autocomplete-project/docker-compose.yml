@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    depends_on:
+      - database
+  database:
+    image: postgres:17-alpine

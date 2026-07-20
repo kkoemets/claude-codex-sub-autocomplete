@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a reproducible plugin defect without private code or credentials.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include source code, prompts, credentials, authentication output, private paths, or complete IDE logs. Report security issues through private vulnerability reporting.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 0.5.6
+    validations:
+      required: true
+  - type: input
+    id: ide-version
+    attributes:
+      label: IntelliJ IDEA version
+      placeholder: IntelliJ IDEA 2026.1.4
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Claude Code
+        - Codex
+        - Both
+        - Provider-independent
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Leave blank only when the issue is provider-independent.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use non-sensitive sample code and include whether completion was manual or automatic.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include only privacy-safe status, timing, and redacted error text.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I removed source code, prompts, credentials, authentication output, private paths, and unredacted logs.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

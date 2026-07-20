@@ -1,0 +1,88 @@
+<idea-plugin>
+  <id>com.kkoemets.subscriptionautocomplete</id>
+  <name>Claude/Codex Sub Autocomplete</name>
+  <vendor url="https://github.com/kkoemets/claude-codex-sub-autocomplete">Kristjan Koemets</vendor>
+  <category>AI</category>
+
+  <description><![CDATA[
+    <p>Native IntelliJ autocomplete using the Claude Code or Codex subscription you already
+    have&mdash;no API keys or separate autocomplete plan.</p>
+    <ul>
+      <li>Switch explicitly between Claude Code and Codex and select a subscription model.</li>
+      <li>Generate expressions, multiline blocks, and comment-directed implementations as native ghost text.</li>
+      <li>Use bounded language-aware editor context, with recent-edit, open-tab, and cross-file sources separately opt-in.</li>
+      <li>Inspect connection state, request progress, safe errors, and latency from the status bar and diagnostics window.</li>
+      <li>Use manual completion by default or opt into automatic requests.</li>
+    </ul>
+    <p>Requests go directly through the selected provider's installed CLI. The plugin does not operate
+    a proxy or telemetry service. Provider tools, project inspection, file writes, and command execution
+    are disabled. Common credential patterns are redacted before requests are sent.</p>
+    <p><b>Requirements:</b> IntelliJ IDEA Community or Ultimate 2026.1 or newer, Java 21, and an installed and authenticated
+    Claude Code or Codex CLI.</p>
+    <p>Claude Code and Codex use agent models rather than purpose-built fill-in-the-middle models.
+    Uncached suggestions can take several seconds, and quality depends on the selected model and context.</p>
+    <p>This is an independent project and is not affiliated with Anthropic, OpenAI, or JetBrains.</p>
+  ]]></description>
+
+  <change-notes><![CDATA[
+    <h3>0.5.6 — Early Access</h3>
+    <ul>
+      <li>Initial Marketplace release.</li>
+      <li>Claude Code and Codex subscription-backed native inline completion without API-key billing.</li>
+      <li>Model selection, bounded opt-in context, diagnostics, local suggestion reuse, and read-only related-edit previews.</li>
+    </ul>
+  ]]></change-notes>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.modules.idea</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings"/>
+    <applicationService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.provider.ProviderSessionLifecycle"/>
+    <applicationConfigurable
+        parentId="tools"
+        instance="com.kkoemets.subscriptionautocomplete.settings.AutocompleteConfigurable"
+        id="com.kkoemets.subscriptionautocomplete.settings"
+        displayName="Claude/Codex Sub Autocomplete"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.context.ContextEngine"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.completion.CompletionRuntimeState"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.completion.PsiSyntaxCompletionValidator"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.context.EditorContextTracker"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.nextedit.NextEditProposalService"/>
+    <postStartupActivity
+        implementation="com.kkoemets.subscriptionautocomplete.context.ContextTrackingStartupActivity"/>
+    <notificationGroup
+        id="Subscription Autocomplete"
+        displayType="BALLOON"
+        isLogByDefault="true"/>
+    <inline.completion.provider
+        implementation="com.kkoemets.subscriptionautocomplete.completion.SubscriptionCompletionProvider"/>
+    <statusBarWidgetFactory
+        id="SubscriptionAutocomplete"
+        implementation="com.kkoemets.subscriptionautocomplete.status.ProviderStatusWidgetFactory"/>
+  </extensions>
+
+  <actions>
+    <action id="SubscriptionAutocomplete.TriggerCompletion"
+        class="com.kkoemets.subscriptionautocomplete.completion.TriggerCompletionAction"
+        text="Trigger Claude/Codex Sub Autocomplete"
+        description="Request an inline completion from the selected subscription provider">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="alt BACK_SLASH"/>
+    </action>
+    <action id="SubscriptionAutocomplete.ProposeRelatedEdit"
+        class="com.kkoemets.subscriptionautocomplete.nextedit.NextEditProposalAction"
+        text="Propose Related Cross-File Edit…"
+        description="Request a read-only related-edit proposal from the selected subscription provider">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+  </actions>
+</idea-plugin>

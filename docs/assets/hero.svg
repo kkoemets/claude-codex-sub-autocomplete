@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
+  <title id="title">Claude/Codex Sub Autocomplete</title>
+  <desc id="description">Native IntelliJ autocomplete from an existing Claude Code or Codex subscription.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24243F"/>
+      <stop offset="0.55" stop-color="#3B3B77"/>
+      <stop offset="1" stop-color="#5757D9"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#111125" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="url(#background)"/>
+  <circle cx="1090" cy="-5" r="190" fill="#FFFFFF" opacity="0.035"/>
+  <circle cx="1030" cy="350" r="260" fill="#111125" opacity="0.09"/>
+  <g transform="translate(72 78)" filter="url(#shadow)">
+    <rect width="204" height="204" rx="48" fill="#7775E7"/>
+    <path d="M42 71L61 52L116 102L61 152L42 133L80 102Z" fill="#FFFFFF"/>
+    <path d="M129 69H168M129 102H168M129 135H154" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" opacity="0.92"/>
+  </g>
+  <text x="326" y="135" fill="#FFFFFF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="54" font-weight="750">Claude/Codex</text>
+  <text x="326" y="199" fill="#FFFFFF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="54" font-weight="750">Sub Autocomplete</text>
+  <text x="329" y="252" fill="#E2E2FF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="23">Native IntelliJ ghost text from subscriptions you already have.</text>
+  <g transform="translate(329 280)">
+    <rect width="286" height="38" rx="19" fill="#FFFFFF" opacity="0.1"/>
+    <circle cx="24" cy="19" r="6" fill="#8EF0BB"/>
+    <text x="42" y="26" fill="#FFFFFF" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">no API keys • no proxy</text>
+  </g>
+</svg>

@@ -1,0 +1,181 @@
+{
+  "version": "autocomplete-corpus-v1",
+  "surfaces": [
+    {
+      "id": "typescript",
+      "languageId": "TypeScript",
+      "fileName": "service.ts",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"const activeUsers = users\n  .filter(user => ","suffix":"\n  .map(user => user.email)\n","target":"user.active)","tags":["single-line"],"expectedGroups":[["active"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"const label = formatUser(","suffix":")\n","target":"user","tags":["suffix-sensitive"],"expectedGroups":[["user"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"async function load() {\n  try {\n","suffix":"  } finally {\n    client.close()\n  }\n}\n","target":"    return await client.fetch()\n","tags":["multiline"],"expectedGroups":[["client.fetch"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"// Implement an LRU (Least Recently Used) Cache class with O(1) time complexity for both get and put operations.\n// It should use a Hash Map and a Doubly Linked List under the hood.\n","suffix":"","target":"type LRUNode<K, V> = {\n  key: K\n  value: V\n  prev: LRUNode<K, V> | null\n  next: LRUNode<K, V> | null\n}\n\nclass LRUCache<K, V> {\n  private readonly nodes = new Map<K, LRUNode<K, V>>()\n  private head: LRUNode<K, V> | null = null\n  private tail: LRUNode<K, V> | null = null\n\n  constructor(private readonly capacity: number) {\n    if (capacity < 1) throw new Error('Capacity must be positive')\n  }\n\n  get(key: K): V | undefined {\n    const node = this.nodes.get(key)\n    if (!node) return undefined\n    this.moveToFront(node)\n    return node.value\n  }\n\n  put(key: K, value: V): void {\n    const existing = this.nodes.get(key)\n    if (existing) {\n      existing.value = value\n      this.moveToFront(existing)\n      return\n    }\n    const node: LRUNode<K, V> = { key, value, prev: null, next: null }\n    this.nodes.set(key, node)\n    this.addToFront(node)\n    if (this.nodes.size > this.capacity && this.tail) {\n      const evicted = this.tail\n      this.remove(evicted)\n      this.nodes.delete(evicted.key)\n    }\n  }\n\n  private moveToFront(node: LRUNode<K, V>): void {\n    this.remove(node)\n    this.addToFront(node)\n  }\n\n  private addToFront(node: LRUNode<K, V>): void {\n    node.prev = null\n    node.next = this.head\n    if (this.head) this.head.prev = node\n    this.head = node\n    if (!this.tail) this.tail = node\n  }\n\n  private remove(node: LRUNode<K, V>): void {\n    if (node.prev) node.prev.next = node.next\n    else this.head = node.next\n    if (node.next) node.next.prev = node.prev\n    else this.tail = node.prev\n  }\n}\n","tags":["locally-implied","multiline"],"expectedGroups":[["class\\s+LRUCache"],["Map<|new\\s+Map"],["get\\s*\\("],["put\\s*\\("],["prev"],["next"]],"maxCharacters":4096},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"const request: ApiRequest = {\n  method: ","suffix":"\n}\n","target":"'GET',","tags":["context-dependent"],"expectedGroups":[["GET"]],"fragments":[{"label":"Current declaration","content":"type HttpMethod = 'GET' | 'POST'\ninterface ApiRequest { method: HttpMethod }"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"function compact(items: Array<string | undefined>) {\n  ","suffix":"\n}\n","target":"return items.filter(Boolean)","tags":["ambiguous"],"expectedGroups":[["filter","flatMap"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"// This method keeps the original array unchanged.\n","suffix":"","typed":"\n","tags":["no-render","comment"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"const timeout = ","suffix":"\n","target":"defaults.timeoutMs","tags":["recent-current","context-dependent"],"expectedGroups":[["defaults"],["timeoutMs"]],"fragments":[{"label":"Recent current code","content":"export const defaults = { timeoutMs: 2500 }","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "javascript",
+      "languageId": "JavaScript",
+      "fileName": "users.js",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"const names = users.map(user => ","suffix":")\n","target":"user.name","tags":["single-line"],"expectedGroups":[["name"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"console.log(format(","suffix":"))\n","target":"result","tags":["suffix-sensitive"],"expectedGroups":[["result"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"function findEnabled(users) {\n","suffix":"}\n","target":"  return users.find(user => user.enabled)\n","tags":["multiline"],"expectedGroups":[["find"],["enabled"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"const doubled = values.map(value => ","suffix":")\n","target":"value * 2","tags":["locally-implied"],"expectedGroups":[["value"],["2"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"const url = ","suffix":"\n","target":"config.apiBaseUrl","tags":["context-dependent"],"expectedGroups":[["config"],["apiBaseUrl"]],"fragments":[{"label":"Current configuration","content":"export const config = { apiBaseUrl: '/v2' }"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"function normalize(value) {\n  ","suffix":"\n}\n","target":"return String(value).trim()","tags":["ambiguous"],"expectedGroups":[["return"],["trim","String"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"export default config\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"const retryDelay = ","suffix":"\n","target":"options.retry.delayMs","tags":["recent-current","context-dependent"],"expectedGroups":[["options"],["delayMs"]],"fragments":[{"label":"Recent current code","content":"const options = { retry: { delayMs: 400 } }","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "python",
+      "languageId": "Python",
+      "fileName": "records.py",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"enabled = [item for item in items if ","suffix":"]\n","target":"item.enabled","tags":["single-line"],"expectedGroups":[["enabled"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"return normalize(","suffix":")\n","target":"value","tags":["suffix-sensitive"],"expectedGroups":[["value"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"def first_valid(items):\n","suffix":"    return None\n","target":"    for item in items:\n        if item.valid:\n            return item\n","tags":["multiline"],"expectedGroups":[["for item"],["valid"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"# implement binary search\n","suffix":"","target":"def binary_search(values, target):\n    low = 0\n    high = len(values) - 1\n    while low <= high:\n        middle = (low + high) // 2\n        if values[middle] == target:\n            return middle\n        if values[middle] < target:\n            low = middle + 1\n        else:\n            high = middle - 1\n    return -1\n","tags":["locally-implied","multiline"],"expectedGroups":[["def binary_search"],["return -1"]],"maxCharacters":512},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"response = ","suffix":"('/health')\n","target":"client.get","tags":["context-dependent"],"expectedGroups":[["client"],["get"]],"fragments":[{"label":"Current protocol","content":"client: HttpClient\nclass HttpClient(Protocol):\n    def get(self, path: str) -> Response: ..."}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"def safe_name(value):\n    ","suffix":"\n","target":"return str(value).strip()","tags":["ambiguous"],"expectedGroups":[["return"],["strip","str"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n    ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"# This helper keeps values normalized.\n","suffix":"","typed":"\n","tags":["no-render","comment"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"timeout = ","suffix":"\n","target":"settings.http.timeout_seconds","tags":["recent-current","context-dependent"],"expectedGroups":[["settings"],["timeout_seconds"]],"fragments":[{"label":"Recent current code","content":"settings = Config(http=HttpConfig(timeout_seconds=5))","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "bash",
+      "languageId": "Shell Script",
+      "fileName": "deploy.sh",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"if [[ -z ","suffix":" ]]; then\n  exit 1\nfi\n","target":"\"${DEPLOY_ENV:-}\"","tags":["single-line"],"expectedGroups":[["DEPLOY_ENV"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"printf '%s\\n' ","suffix":"\n","target":"\"$artifact\"","tags":["suffix-sensitive"],"expectedGroups":[["artifact"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"deploy() {\n","suffix":"}\n","target":"  docker compose pull\n  docker compose up -d\n","tags":["multiline"],"expectedGroups":[["compose pull"],["compose up"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"for file in \"${files[@]}\"; do\n  ","suffix":"\ndone\n","target":"process \"$file\"","tags":["locally-implied"],"expectedGroups":[["process"],["file"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"curl --fail --silent ","suffix":"\n","target":"\"$HEALTH_URL\"","tags":["context-dependent"],"expectedGroups":[["HEALTH_URL"]],"fragments":[{"label":"Current variables","content":"readonly HEALTH_URL='http://localhost:8080/health'"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"# Stop when the deployment ","suffix":"\n","target":"fails","tags":["ambiguous","comment"],"expectedGroups":[["fail","error"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"exit 0\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"archive_path=", "suffix":"\n","target":"\"${paths[archive]}\"","tags":["recent-current","context-dependent"],"expectedGroups":[["paths"],["archive"]],"fragments":[{"label":"Recent current code","content":"declare -A paths=([archive]='/tmp/build.tgz')","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "java",
+      "languageId": "JAVA",
+      "fileName": "Users.java",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"return users.stream().filter(user -> ","suffix":").toList();\n","target":"user.isActive()","tags":["single-line"],"expectedGroups":[["isActive"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"return Optional.ofNullable(","suffix":");\n","target":"name","tags":["suffix-sensitive"],"expectedGroups":[["name"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"String display(User user) {\n","suffix":"}\n","target":"  if (user == null) return \"unknown\";\n  return user.name();\n","tags":["multiline"],"expectedGroups":[["user == null"],["name"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"import java.util.List;\n\nclass Csv {\n  // parse comma separated values\n  ","suffix":"\n}\n","target":"static List<String> parseCsv(String line) {\n    return List.of(line.split(\",\"));\n  }","tags":["locally-implied","multiline"],"expectedGroups":[["parseCsv"],["split"]],"maxCharacters":512},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"Duration timeout = Defaults.","suffix":";\n","target":"requestTimeout()","tags":["context-dependent"],"expectedGroups":[["requestTimeout"]],"fragments":[{"label":"Current declaration","content":"record Defaults(Duration requestTimeout) {}"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"String normalize(Object value) {\n  ","suffix":"\n}\n","target":"return String.valueOf(value).trim();","tags":["ambiguous"],"expectedGroups":[["return"],["trim","valueOf"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"class Csv {\n  // This class stores parsed records.\n  ","suffix":"\n}\n","typed":"\n","tags":["no-render","comment"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"var timeout = ","suffix":";\n","target":"configuration.http().timeout()","tags":["recent-current","context-dependent"],"expectedGroups":[["configuration"],["timeout"]],"fragments":[{"label":"Recent current code","content":"var configuration = new Configuration(new HttpSettings(Duration.ofSeconds(4)));","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "kotlin",
+      "languageId": "kotlin",
+      "fileName": "Users.kt",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"return users.filter { user -> ","suffix":" }\n","target":"user.enabled","tags":["single-line"],"expectedGroups":[["enabled"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"return requireNotNull(","suffix":")\n","target":"value","tags":["suffix-sensitive"],"expectedGroups":[["value"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"fun firstPositive(values: List<Int>): Int? {\n","suffix":"  return null\n}\n","target":"  for (value in values) {\n    if (value > 0) return value\n  }\n","tags":["multiline"],"expectedGroups":[["for"],["value > 0"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"val names = users.map(User::","suffix":")\n","target":"name","tags":["locally-implied"],"expectedGroups":[["name"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"val timeout = ","suffix":"\n","target":"defaults.requestTimeout","tags":["context-dependent"],"expectedGroups":[["defaults"],["requestTimeout"]],"fragments":[{"label":"Current declaration","content":"data class Defaults(val requestTimeout: Duration)"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"fun normalize(value: Any?): String {\n  ","suffix":"\n}\n","target":"return value?.toString()?.trim().orEmpty()","tags":["ambiguous"],"expectedGroups":[["return"],["trim","orEmpty"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"const val ENABLED = true\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"val delay = ","suffix":"\n","target":"configuration.retry.delay","tags":["recent-current","context-dependent"],"expectedGroups":[["configuration"],["delay"]],"fragments":[{"label":"Recent current code","content":"val configuration = AppConfig(retry = RetryConfig(delay = 500.milliseconds))","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "docker-compose",
+      "languageId": "yaml",
+      "fileName": "docker-compose.yml",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"services:\n  api:\n    depends_on:\n      - ","suffix":"\n  db:\n    image: postgres:17\n","target":"db","tags":["single-line","structured-scalar"],"expectedGroups":[["db"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"    restart: ","suffix":"\n","target":"unless-stopped","tags":["suffix-sensitive","structured-scalar"],"expectedGroups":[["unless-stopped"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"services:\n  worker:\n","suffix":"  cache:\n    image: redis:7\n","target":"    image: example/worker\n    restart: on-failure\n","tags":["multiline"],"expectedGroups":[["image"],["on-failure"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"services:\n  api:\n    ports:\n      - \"8080:","suffix":"\"\n","target":"8080","tags":["locally-implied","structured-scalar"],"expectedGroups":[["8080"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"  api:\n    environment:\n      DATABASE_URL: ","suffix":"\n","target":"postgresql://db/app","tags":["context-dependent","structured-scalar"],"expectedGroups":[["postgresql"],["db"]],"fragments":[{"label":"Current services","content":"services:\n  db:\n    image: postgres:17"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"  api:\n    # Keep the container ","suffix":"\n","target":"running after failures","tags":["ambiguous","comment"],"expectedGroups":[["running","available"],["failure","restart"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"services: {}\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"  worker:\n    network_mode: ","suffix":"\n","target":"service:gateway","tags":["recent-current","context-dependent","structured-scalar"],"expectedGroups":[["service"],["gateway"]],"fragments":[{"label":"Recent current code","content":"services:\n  gateway:\n    image: example/gateway","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "sql",
+      "languageId": "SQL",
+      "fileName": "customers.sql",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"SELECT id, email\nFROM users\nWHERE ","suffix":";\n","target":"active = TRUE","tags":["single-line"],"expectedGroups":[["active"],["TRUE"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"ORDER BY created_at ","suffix":";\n","target":"DESC","tags":["suffix-sensitive"],"expectedGroups":[["DESC"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"SELECT customer_id, COUNT(*)\nFROM orders\n","suffix":"ORDER BY customer_id;\n","target":"WHERE status = 'paid'\nGROUP BY customer_id\n","tags":["multiline"],"expectedGroups":[["paid"],["GROUP BY"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"SELECT COUNT(*)\nFROM sessions\nWHERE expires_at ","suffix":" CURRENT_TIMESTAMP;\n","target":">","tags":["locally-implied"],"expectedGroups":[[">"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"SELECT u.email\nFROM users u\nJOIN profiles p ON ","suffix":";\n","target":"p.user_id = u.id","tags":["context-dependent"],"expectedGroups":[["p.user_id"],["u.id"]],"fragments":[{"label":"Current schema","content":"profiles(user_id BIGINT, display_name TEXT)\nusers(id BIGINT, email TEXT)"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"-- Return customers with ","suffix":"\nSELECT * FROM customers;\n","target":"recent orders","tags":["ambiguous","comment"],"expectedGroups":[["order"],["recent","latest"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"COMMIT;\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"SELECT * FROM ","suffix":" WHERE enabled = TRUE;\n","target":"reporting.active_accounts","tags":["recent-current","context-dependent"],"expectedGroups":[["reporting"],["active_accounts"]],"fragments":[{"label":"Recent current code","content":"CREATE SCHEMA reporting;\nCREATE VIEW active_accounts AS SELECT account_id FROM accounts WHERE enabled;","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "html",
+      "languageId": "HTML",
+      "fileName": "form.html",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"<label for=\"email\">Email</label>\n<input type=\"","suffix":"\" id=\"email\">\n","target":"email","tags":["single-line","structured-scalar"],"expectedGroups":[["email"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"<button aria-label=\"","suffix":"\">Save</button>\n","target":"Save changes","tags":["suffix-sensitive","structured-scalar"],"expectedGroups":[["Save"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"<main>\n","suffix":"</main>\n","target":"  <h1>Account</h1>\n  <p>Manage your profile.</p>\n","tags":["multiline"],"expectedGroups":[["h1"],["profile"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"<a href=\"/settings\" class=\"","suffix":"\">Settings</a>\n","target":"nav-link","tags":["locally-implied","structured-scalar"],"expectedGroups":[["nav-link"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"<input id=\"phone\" autocomplete=\"","suffix":"\">\n","target":"tel","tags":["context-dependent","structured-scalar"],"expectedGroups":[["tel"]],"fragments":[{"label":"Current form","content":"<label for=\"phone\">Phone number</label>"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"<!-- Show this panel when the account is ","suffix":" -->\n<section></section>\n","target":"active","tags":["ambiguous","comment"],"expectedGroups":[["active","enabled"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"<!doctype html>\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"<output for=\"","suffix":"\"></output>\n","target":"price quantity","tags":["recent-current","context-dependent","structured-scalar"],"expectedGroups":[["price"],["quantity"]],"fragments":[{"label":"Recent current code","content":"<input id=\"price\" type=\"number\"><input id=\"quantity\" type=\"number\">","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "json",
+      "languageId": "JSON",
+      "fileName": "package.json",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"{\n  \"private\": ","suffix":"\n}\n","target":"true","tags":["single-line","structured-scalar"],"expectedGroups":[["true"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"{\n  \"type\": \"","suffix":"\"\n}\n","target":"module","tags":["suffix-sensitive","structured-scalar"],"expectedGroups":[["module"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"{\n  \"scripts\": {\n","suffix":"  }\n}\n","target":"    \"test\": \"vitest run\",\n    \"lint\": \"eslint .\"\n","tags":["multiline"],"expectedGroups":[["vitest"],["eslint"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"{\n  \"engines\": {\n    \"node\": \"", "suffix":"\"\n  }\n}\n","target":">=22","tags":["locally-implied","structured-scalar"],"expectedGroups":[["22"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"{\n  \"main\": \"", "suffix":"\"\n}\n","target":"dist/index.js","tags":["context-dependent","structured-scalar"],"expectedGroups":[["dist"],["index"]],"fragments":[{"label":"Current scripts","content":"{ \"build\": \"tsc --outDir dist\" }"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"{\n  \"description\": \"", "suffix":"\"\n}\n","target":"Command line utilities","tags":["ambiguous","structured-scalar"],"expectedGroups":[["utilities","tools"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"{}\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"{\n  \"extends\": \"", "suffix":"\"\n}\n","target":"./config/base.json","tags":["recent-current","context-dependent","structured-scalar"],"expectedGroups":[["config"],["base"]],"fragments":[{"label":"Recent current code","content":"{ \"files\": [\"config/base.json\"], \"compilerOptions\": {} }","source":"recent-current"}]}
+      ]
+    },
+    {
+      "id": "dockerfile",
+      "languageId": "Dockerfile",
+      "fileName": "Dockerfile",
+      "cases": [
+        {"id":"masked-line","kind":"MASKED_SPAN","prefix":"FROM node:22-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN ","suffix":"\nCOPY . .\n","target":"npm ci","tags":["single-line"],"expectedGroups":[["npm ci"]]},
+        {"id":"masked-suffix","kind":"MASKED_SPAN","prefix":"EXPOSE ","suffix":"\n","target":"8080","tags":["suffix-sensitive","structured-scalar"],"expectedGroups":[["8080"]]},
+        {"id":"masked-multiline","kind":"MASKED_SPAN","prefix":"FROM python:3.13-alpine\n","suffix":"COPY . /app\n","target":"WORKDIR /app\nRUN pip install --no-cache-dir -r requirements.txt\n","tags":["multiline"],"expectedGroups":[["WORKDIR"],["pip install"]]},
+        {"id":"ordinary-local","kind":"ORDINARY","prefix":"COPY package.json package-lock.json ./\nRUN ","suffix":"\n","target":"npm ci --omit=dev","tags":["locally-implied"],"expectedGroups":[["npm ci"],["omit"]]},
+        {"id":"ordinary-context","kind":"ORDINARY","prefix":"COPY --from=builder ", "suffix":" /app/\n","target":"/workspace/dist","tags":["context-dependent","structured-scalar"],"expectedGroups":[["workspace"],["dist"]],"fragments":[{"label":"Current build stage","content":"FROM node:22 AS builder\nWORKDIR /workspace\nRUN npm run build\n# build output directory: dist"}]},
+        {"id":"ordinary-ambiguous","kind":"ORDINARY","prefix":"# Install only the packages needed to ","suffix":"\nRUN apk add curl\n","target":"run the health check","tags":["ambiguous","comment"],"expectedGroups":[["health"],["check"]]},
+        {"id":"negative-ineligible","kind":"NEGATIVE","prefix":"\n  ","suffix":"","typed":" ","tags":["no-backend"],"negativeExpectation":"NO_BACKEND_CALL"},
+        {"id":"negative-no-render","kind":"NEGATIVE","prefix":"CMD [\"node\", \"server.js\"]\n","suffix":"","typed":"\n","tags":["no-render"],"negativeExpectation":"NO_RENDERED_SUGGESTION"},
+        {"id":"recent-current","kind":"RECENT_CURRENT_CONTEXT","prefix":"COPY --from=", "suffix":" /srv/app\n","target":"compile /workspace/output","tags":["recent-current","context-dependent"],"expectedGroups":[["compile"],["output"]],"fragments":[{"label":"Recent current code","content":"FROM golang:1.24 AS compile\nRUN go build -o /workspace/output ./cmd/server","source":"recent-current"}]}
+      ]
+    }
+  ]
+}
