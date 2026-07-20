@@ -68,6 +68,7 @@ class CompletionPromptTest {
     assertTrue(prompt.systemPrompt.contains("one concise semantic unit"))
     assertTrue(prompt.systemPrompt.contains("never add sibling keys"))
     assertTrue(prompt.systemPrompt.contains("Never emit prompt-control markers"))
+    assertTrue(prompt.systemPrompt.contains("If nothing should be inserted, return zero characters"))
     assertEquals(CompletionMode.AUTOMATIC, prompt.mode)
   }
 
@@ -363,6 +364,34 @@ class CompletionPromptTest {
     )
 
     assertEquals("", result)
+  }
+
+  @Test
+  fun `sanitizer rejects provider no insertion explanation in YAML`() {
+    val result = CompletionSanitizer.sanitize(
+      "The YAML structure is already complete. The analysis block ends with the details field, and the " +
+        "suppress: true is already present on the next line. No additional text needs to be inserted at the " +
+        "cursor position.",
+      "analysis:\n  details: complete\n  suppress: true\n",
+      "",
+      100,
+      "yaml",
+    )
+
+    assertEquals("", result)
+  }
+
+  @Test
+  fun `sanitizer preserves ordinary prose used as a YAML scalar`() {
+    val result = CompletionSanitizer.sanitize(
+      " The cache is already complete and ready to use",
+      "description:",
+      "\nenabled: true",
+      100,
+      "yaml",
+    )
+
+    assertEquals(" The cache is already complete and ready to use", result)
   }
 
   @Test

@@ -25,11 +25,11 @@
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>0.5.6 — Early Access</h3>
+    <h3>0.5.7 — Early Access</h3>
     <ul>
-      <li>Initial Marketplace release.</li>
-      <li>Claude Code and Codex subscription-backed native inline completion without API-key billing.</li>
-      <li>Model selection, bounded opt-in context, diagnostics, local suggestion reuse, and read-only related-edit previews.</li>
+      <li>Rejects provider explanations such as “the YAML structure is already complete” instead of rendering them as ghost text.</li>
+      <li>Adds a release-blocking safety matrix for every exposed Claude model and GPT model/reasoning combination.</li>
+      <li>Retains legitimate natural-language YAML scalar completions while filtering provider meta-responses before validation, caching, or rendering.</li>
     </ul>
   ]]></change-notes>
 

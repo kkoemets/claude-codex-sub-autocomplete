@@ -154,6 +154,14 @@ tasks.register<JavaExec>("autocompleteDeterministicEval") {
   )
 }
 
+tasks.register<JavaExec>("autocompleteProviderModelSafetyGate") {
+  group = "verification"
+  description = "Rejects provider prose across every exposed Claude/Codex model and reasoning combination"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.ProviderModelSafetyGate")
+}
+
 tasks.register<JavaExec>("subscriptionSampleEval") {
   group = "verification"
   description = "Runs an advisory one-request-per-surface Claude/Codex sample"
@@ -314,6 +322,7 @@ tasks.register("autocompleteReleaseGate") {
   dependsOn(
     tasks.test,
     tasks.named("autocompleteDeterministicEval"),
+    tasks.named("autocompleteProviderModelSafetyGate"),
     tasks.named("autocompleteInstalledIdeTest"),
     tasks.named("buildPlugin"),
     tasks.named("verifyPlugin"),

@@ -2,6 +2,13 @@
 
 All notable user-facing changes are documented here.
 
+## 0.5.7 — Early Access
+
+- Rejected provider explanations and no-op descriptions instead of inserting them into structured files such as YAML.
+- Added explicit empty-response prompting when the cursor needs no insertion.
+- Added a release-blocking safety matrix covering every exposed Claude model and every GPT model/reasoning combination.
+- Preserved legitimate natural-language YAML scalar completions.
+
 ## 0.5.6 — Early Access
 
 - Added native Claude Code and Codex subscription-backed inline completion.

@@ -285,6 +285,26 @@ object AutocompleteExpectationsEval {
       "\n  db: {}",
       "      -\n  db: {}",
     ),
+    insertion(
+      "yaml-no-insertion-explanation-rejection",
+      "cleanup",
+      "analysis:\n  details: complete\n  suppress: true\n",
+      "The YAML structure is already complete. The analysis block ends with the details field, and the " +
+        "suppress: true is already present on the next line. No additional text needs to be inserted at the " +
+        "cursor position.",
+      "",
+      "analysis:\n  details: complete\n  suppress: true\n",
+      "yaml",
+    ),
+    insertion(
+      "yaml-natural-language-scalar-preserved",
+      "structured-scalar",
+      "description:",
+      " The cache is already complete and ready to use",
+      "\nenabled: true",
+      "description: The cache is already complete and ready to use\nenabled: true",
+      "yaml",
+    ),
     insertion("prefix-echo-removal", "overlap", "return ", "return value", "", "return value"),
     insertion(
       "suffix-line-overlap",

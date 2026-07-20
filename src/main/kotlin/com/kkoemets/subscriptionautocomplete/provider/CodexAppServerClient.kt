@@ -136,7 +136,7 @@ internal class CodexAppServerClient : AutoCloseable {
           add("clientInfo", JsonObject().apply {
             addProperty("name", "subscription_autocomplete_intellij")
             addProperty("title", "Claude/Codex Sub Autocomplete")
-            addProperty("version", "0.5.6")
+            addProperty("version", "0.5.7")
           })
         },
         deadline,

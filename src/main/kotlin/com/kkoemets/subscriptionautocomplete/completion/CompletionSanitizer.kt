@@ -19,6 +19,7 @@ object CompletionSanitizer {
       .removeSpecialTokenTail()
       .trimEnd()
     if (value.isBlank()) return ""
+    if (value.isNoInsertionExplanation()) return ""
     if (
       intent.isImplementation() &&
       (value.startsWithIntentComment() || value.echoesIntentComment(prefix))
@@ -75,6 +76,11 @@ object CompletionSanitizer {
   private fun String.removeExplanationTail(): String {
     val explanation = EXPLANATION_LINE.find(this) ?: return this
     return substring(0, explanation.range.first).trimEnd()
+  }
+
+  private fun String.isNoInsertionExplanation(): Boolean {
+    val compact = trim().replace(WHITESPACE_RUN, " ")
+    return NO_INSERTION_EXPLANATIONS.any { pattern -> pattern.containsMatchIn(compact) }
   }
 
   private fun removePrefixOverlap(completion: String, prefix: String): String {
@@ -187,6 +193,20 @@ object CompletionSanitizer {
   private val EXPLANATION_LINE = Regex(
     "(?im)^[ \\t]*(?:the cursor\\b|the completion should\\b|wait,|looking at\\b|" +
       "explanation:|here(?:'s| is)\\b|i would\\b|sure[,!:])",
+  )
+  private val WHITESPACE_RUN = Regex("\\s+")
+  private val NO_INSERTION_EXPLANATIONS = listOf(
+    Regex(
+      "(?i)^(?:the\\s+)?(?:yaml|yml|json|xml|html|document|file|configuration|config|code|structure)" +
+        "(?:\\s+structure)?\\b.{0,160}\\b(?:already\\s+)?complete\\b",
+    ),
+    Regex(
+      "(?i)\\bno\\s+(?:additional|further|other)\\s+(?:text|code|content|completion|changes?)\\b" +
+        ".{0,160}\\b(?:insert(?:ed|ion)?|add(?:ed|ition)?|need(?:ed|s)?|require(?:d|s)?)\\b",
+    ),
+    Regex(
+      "(?i)\\b(?:nothing|no\\s+insertion)\\b.{0,120}\\b(?:insert(?:ed)?|add(?:ed)?|need(?:ed|s)?|require(?:d|s)?)\\b",
+    ),
   )
   private val BLOCK_OPENING_SUFFIXES = listOf("{", ":", "=>")
   private val SAFE_SINGLE_CHARACTER_OVERLAPS = setOf(')', ']', '}', '"', '\'', ',', ';')
