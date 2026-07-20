@@ -6,6 +6,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionSanitizer
 import com.kkoemets.subscriptionautocomplete.context.CompletionContext
 import com.kkoemets.subscriptionautocomplete.provider.ProviderPolicy
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
+import com.kkoemets.subscriptionautocomplete.terminal.TerminalCommandSanitizer
 
 object ProviderModelSafetyGate {
   @JvmStatic
@@ -23,6 +24,16 @@ object ProviderModelSafetyGate {
           )
           if (completion.isNotEmpty()) {
             add("${profile.label} rendered unsafe response ${responseIndex + 1}")
+          }
+        }
+        UNSAFE_TERMINAL_RESPONSES.forEachIndexed { responseIndex, response ->
+          if (TerminalCommandSanitizer.sanitize(response).isNotEmpty()) {
+            add("${profile.label} rendered unsafe terminal response ${responseIndex + 1}")
+          }
+        }
+        VALID_TERMINAL_RESPONSES.forEachIndexed { responseIndex, response ->
+          if (TerminalCommandSanitizer.sanitize(response) != response) {
+            add("${profile.label} rejected valid terminal response ${responseIndex + 1}")
           }
         }
       }
@@ -43,8 +54,10 @@ object ProviderModelSafetyGate {
     check(failures.isEmpty()) {
       "Provider/model prose safety gate failed: ${failures.joinToString()}"
     }
-    val checks = profiles.size * UNSAFE_PROVIDER_RESPONSES.size
-    println("Provider/model prose safety gate: $checks/$checks passed across ${profiles.size} profiles")
+    val checks = profiles.size * (
+      UNSAFE_PROVIDER_RESPONSES.size + UNSAFE_TERMINAL_RESPONSES.size + VALID_TERMINAL_RESPONSES.size
+      )
+    println("Provider/model editor and terminal safety gate: $checks/$checks passed across ${profiles.size} profiles")
     println(
       "Claude models: ${ProviderPolicy.claudeModels.joinToString()}; " +
         "Codex models: ${ProviderPolicy.codexFallbackChoices.joinToString()}; " +
@@ -77,5 +90,16 @@ object ProviderModelSafetyGate {
     "The file is complete and no further code needs to be added.",
     "No additional content needs to be inserted at the cursor position.",
     "Nothing needs to be inserted because the configuration is complete.",
+  )
+  private val UNSAFE_TERMINAL_RESPONSES = listOf(
+    "Here is the command: git status --short",
+    "The YAML structure is already complete as written.",
+    "git status\npwd",
+    "git status\u001b[31m",
+  )
+  private val VALID_TERMINAL_RESPONSES = listOf(
+    "git status --short",
+    "command -v node",
+    "find . -name '*.ts' -print",
   )
 }

@@ -20,6 +20,12 @@ The Plugin does not send the whole repository, Git history, deleted text, or eve
 Common credential patterns are redacted before a request is sent. Provider tools, project
 inspection, file writes, and command execution are disabled for completion requests.
 
+When You explicitly type a `# request` and press Tab in IntelliJ's terminal, the Plugin
+sends the bounded request, shell name, working directory, project name, and detected project-marker
+names. It does not send terminal history, terminal output, environment variables, or project-file
+contents for that request. A returned command is inserted for Your review and is never submitted or
+executed by the Plugin.
+
 ## Where data goes
 
 Requests go from Your computer to the provider selected in the Plugin, through that provider's
@@ -37,8 +43,9 @@ they do not contain source code or prompts.
 ## Your controls
 
 Automatic completion is off by default. Optional recent-edit, open-tab, and cross-file context are
-also off by default. You can disable completions, clear in-memory state by changing settings or
-closing the project, sign out of a provider CLI, or uninstall the Plugin.
+also off by default. Terminal command generation can be disabled independently. You can disable
+completions, clear in-memory state by changing settings or closing the project, sign out of a
+provider CLI, or uninstall the Plugin.
 
 ## Contact
 

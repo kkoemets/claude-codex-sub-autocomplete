@@ -4,6 +4,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionActivityPhase
 import com.kkoemets.subscriptionautocomplete.completion.CompletionActivitySnapshot
 import com.kkoemets.subscriptionautocomplete.completion.CompletionCandidateSource
 import com.kkoemets.subscriptionautocomplete.completion.CompletionStageTimings
+import com.kkoemets.subscriptionautocomplete.completion.CompletionSurface
 import com.kkoemets.subscriptionautocomplete.completion.CompletionTerminalReason
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 
@@ -30,7 +31,8 @@ internal object DiagnosticsActivityPresentation {
     }
     val timings = activity.timings.parts()
     return buildString {
-      append("Last completion: #").append(activity.requestId)
+      append(if (activity.surface == CompletionSurface.TERMINAL) "Last terminal command: #" else "Last completion: #")
+      append(activity.requestId)
       append(" · ").append(source)
       append(" · ").append(outcome)
       if (timings.isNotEmpty()) append(" · ").append(timings.joinToString(" · "))
@@ -56,6 +58,7 @@ internal object DiagnosticsActivityPresentation {
     CompletionTerminalReason.CANCELLED -> "cancelled"
     CompletionTerminalReason.TIMEOUT -> "timeout"
     CompletionTerminalReason.OUTPUT_LIMIT -> "output too long"
+    CompletionTerminalReason.UNSAFE_OUTPUT -> "unsafe output"
     CompletionTerminalReason.PROVIDER_FAILURE -> "provider failure"
   }
 

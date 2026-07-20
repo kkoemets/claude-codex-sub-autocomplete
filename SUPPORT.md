@@ -8,6 +8,12 @@
 4. Retry with manual completion using `Alt+\`.
 5. Review the troubleshooting section in the [README](README.md#troubleshooting).
 
+For terminal commands, confirm **Enable terminal commands (# request + Tab)** is active. Both
+classic and Reworked Terminal sessions are supported. The shortcut only takes over when the
+current prompt begins with `#` followed by a descriptive request; the plugin inserts a command but
+never executes it. Diagnostics should show **Terminal Tab integration attached** after the project
+opens.
+
 ## Where to ask
 
 - Use a [bug report](https://github.com/kkoemets/claude-codex-sub-autocomplete/issues/new?template=bug_report.yml) for reproducible plugin defects.

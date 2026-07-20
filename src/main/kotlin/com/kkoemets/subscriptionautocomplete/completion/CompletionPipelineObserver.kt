@@ -7,6 +7,11 @@ enum class CompletionCandidateSource {
   CACHE,
 }
 
+enum class CompletionSurface {
+  EDITOR,
+  TERMINAL,
+}
+
 enum class CompletionTerminalReason {
   NONE,
   READY,
@@ -18,6 +23,7 @@ enum class CompletionTerminalReason {
   CANCELLED,
   TIMEOUT,
   OUTPUT_LIMIT,
+  UNSAFE_OUTPUT,
   PROVIDER_FAILURE,
 }
 
@@ -42,6 +48,7 @@ data class CompletionPipelineEvent(
   val source: CompletionCandidateSource = CompletionCandidateSource.PROVIDER,
   val provider: ProviderKind? = null,
   val terminalReason: CompletionTerminalReason? = null,
+  val surface: CompletionSurface = CompletionSurface.EDITOR,
 )
 
 fun interface CompletionPipelineObserver {

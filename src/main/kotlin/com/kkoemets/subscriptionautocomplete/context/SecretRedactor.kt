@@ -26,16 +26,17 @@ object SecretRedactor {
   fun redact(text: String): String = privateKey.replace(text, "<redacted-private-key>")
     .lineSequence()
     .joinToString("\n") { line ->
-      val assigned = assignment.matchEntire(line)
+      val withoutAuthorization = authorizationHeader.replace(line, "${'$'}1<redacted>")
+      val assigned = assignment.matchEntire(withoutAuthorization)
       val redactedLine = if (assigned != null) {
         assigned.groupValues[1] + "<redacted>"
       } else {
-        structuredValue.replace(line) { match -> match.groupValues[1] + "<redacted>" }
+        structuredValue.replace(withoutAuthorization) { match -> match.groupValues[1] + "<redacted>" }
       }
       basicAuthUrl.replace(
         jwt.replace(
           providerToken.replace(
-            authorizationHeader.replace(redactedLine, "${'$'}1<redacted>"),
+            redactedLine,
             "<redacted-token>",
           ),
           "<redacted-jwt>",

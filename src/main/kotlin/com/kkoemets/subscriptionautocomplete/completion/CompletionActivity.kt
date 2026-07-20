@@ -34,6 +34,7 @@ data class CompletionActivitySnapshot(
   val terminalReason: CompletionTerminalReason = CompletionTerminalReason.NONE,
   val timings: CompletionStageTimings = CompletionStageTimings(),
   val startedAtMillis: Long = 0,
+  val surface: CompletionSurface = CompletionSurface.EDITOR,
 ) {
   fun elapsedAt(nowMillis: Long): Long {
     if (!phase.isActive || startedAtMillis <= 0) return elapsedMillis
@@ -94,6 +95,7 @@ internal class CompletionActivityState(
       } else {
         current.snapshot.startedAtMillis
       },
+      surface = event.surface,
     )
     if (next == current.snapshot && event.stage == current.stage) return@synchronized null
     current = ActivityProgress(next, stageElapsed, event.stage)

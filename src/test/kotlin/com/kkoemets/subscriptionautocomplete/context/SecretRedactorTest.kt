@@ -6,6 +6,14 @@ import kotlin.test.assertTrue
 
 class SecretRedactorTest {
   @Test
+  fun `redacts embedded authorization header before generic structured values`() {
+    val redacted = SecretRedactor.redact("curl with Authorization: Bearer secret-value")
+
+    assertFalse(redacted.contains("secret-value"))
+    assertTrue(redacted.contains("<redacted>"))
+  }
+
+  @Test
   fun `redacts environment and structured secrets`() {
     val redacted = SecretRedactor.redact(
       """

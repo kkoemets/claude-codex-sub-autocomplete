@@ -7,6 +7,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionActivitySnapsh
 import com.kkoemets.subscriptionautocomplete.completion.CompletionCandidateSource
 import com.kkoemets.subscriptionautocomplete.completion.CompletionRuntimeState
 import com.kkoemets.subscriptionautocomplete.completion.CompletionStageTimings
+import com.kkoemets.subscriptionautocomplete.completion.CompletionSurface
 import com.kkoemets.subscriptionautocomplete.completion.CompletionTerminalReason
 import com.kkoemets.subscriptionautocomplete.completion.TriggerCompletionAction
 import com.kkoemets.subscriptionautocomplete.diagnostics.DiagnosticsDialog
@@ -116,11 +117,19 @@ class ProviderStatusWidget(private val project: Project) : StatusBarWidget, Stat
   private fun showMenu(event: MouseEvent) {
     val settings = AutocompleteSettings.getInstance()
     val actions = DefaultActionGroup().apply {
-      add(object : ToggleAction("Enable inline completions") {
+      add(object : ToggleAction("Enable Claude/Codex completions") {
         override fun isSelected(event: AnActionEvent): Boolean = settings.state.enabled
 
         override fun setSelected(event: AnActionEvent, state: Boolean) {
           settings.update { it.enabled = state }
+          statusBar?.updateWidget(ID)
+        }
+      })
+      add(object : ToggleAction("Enable terminal # request + Tab") {
+        override fun isSelected(event: AnActionEvent): Boolean = settings.state.terminalCompletionsEnabled
+
+        override fun setSelected(event: AnActionEvent, state: Boolean) {
+          settings.update { it.terminalCompletionsEnabled = state }
           statusBar?.updateWidget(ID)
         }
       })
@@ -192,12 +201,25 @@ internal object ProviderStatusPresentation {
     val elapsedMillis = activity.elapsedAt(nowMillis)
     val elapsed = formatDuration(elapsedMillis)
     val activityMarker = activityMarker(elapsedMillis)
+    val terminal = activity.surface == CompletionSurface.TERMINAL
     return when (activity.phase) {
       CompletionActivityPhase.IDLE -> idleText(settings, provider)
-      CompletionActivityPhase.PREPARING -> "AI $activityMarker · gathering · $elapsed"
-      CompletionActivityPhase.REQUESTING -> "AI $activityMarker · $source generating · $elapsed"
-      CompletionActivityPhase.CHECKING -> "AI $activityMarker · checking · $elapsed"
-      CompletionActivityPhase.READY -> "AI ✓ ready · $source"
+      CompletionActivityPhase.PREPARING -> if (terminal) {
+        "AI $activityMarker · terminal context · $elapsed"
+      } else {
+        "AI $activityMarker · gathering · $elapsed"
+      }
+      CompletionActivityPhase.REQUESTING -> if (terminal) {
+        "AI $activityMarker · $source command · $elapsed"
+      } else {
+        "AI $activityMarker · $source generating · $elapsed"
+      }
+      CompletionActivityPhase.CHECKING -> if (terminal) {
+        "AI $activityMarker · checking command · $elapsed"
+      } else {
+        "AI $activityMarker · checking · $elapsed"
+      }
+      CompletionActivityPhase.READY -> if (terminal) "AI ✓ inserted · $source" else "AI ✓ ready · $source"
       CompletionActivityPhase.NO_RESULT -> "AI – ${activity.terminalReason.shortLabel()} · $source"
       CompletionActivityPhase.FAILED -> "AI ! ${activity.terminalReason.shortLabel()} · $source"
     }
@@ -213,6 +235,7 @@ internal object ProviderStatusPresentation {
     val source = sourceDescription(activity, activityProvider, settings)
     val elapsed = formatDuration(activity.elapsedAt(System.currentTimeMillis()))
     val timings = activity.timings.summarySuffix()
+    val terminal = activity.surface == CompletionSurface.TERMINAL
     val status = if (!settings.enabled) {
       "Subscription autocomplete is disabled."
     } else {
@@ -222,16 +245,37 @@ internal object ProviderStatusPresentation {
         } else {
           "Ready to request automatic completions from $target.${activity.lastOutcomeSuffix()}"
         }
-        CompletionActivityPhase.PREPARING -> "Gathering bounded code context for $source ($elapsed elapsed)."
-        CompletionActivityPhase.REQUESTING -> "$source is generating an inline completion ($elapsed elapsed)."
-        CompletionActivityPhase.CHECKING -> "Sanitizing and validating the completion from $source ($elapsed elapsed)."
-        CompletionActivityPhase.READY -> "Inline suggestion from $source is ready. Press Tab to accept it.$timings"
+        CompletionActivityPhase.PREPARING -> if (terminal) {
+          "Gathering bounded terminal context for $source ($elapsed elapsed)."
+        } else {
+          "Gathering bounded code context for $source ($elapsed elapsed)."
+        }
+        CompletionActivityPhase.REQUESTING -> if (terminal) {
+          "$source is generating a terminal command ($elapsed elapsed). The typed request remains unchanged."
+        } else {
+          "$source is generating an inline completion ($elapsed elapsed)."
+        }
+        CompletionActivityPhase.CHECKING -> if (terminal) {
+          "Checking the generated command for explanations, multiple lines, and terminal control data ($elapsed elapsed)."
+        } else {
+          "Sanitizing and validating the completion from $source ($elapsed elapsed)."
+        }
+        CompletionActivityPhase.READY -> if (terminal) {
+          "A terminal command from $source was inserted but not executed. Review it, then press Enter yourself.$timings"
+        } else {
+          "Inline suggestion from $source is ready. Press Tab to accept it.$timings"
+        }
         CompletionActivityPhase.NO_RESULT -> "Last result from $source: ${activity.terminalReason.description()}.$timings"
         CompletionActivityPhase.FAILED ->
           "Last request to $source: ${activity.terminalReason.description()}. Open diagnostics for details.$timings"
       }
     }
-    return "$status Click for settings, connectivity tests, and diagnostics."
+    val terminalHint = if (settings.terminalCompletionsEnabled && activity.phase == CompletionActivityPhase.IDLE) {
+      " In IntelliJ's terminal, type # followed by a request and press Tab."
+    } else {
+      ""
+    }
+    return "$status$terminalHint Click for settings, connectivity tests, and diagnostics."
   }
 
   private fun idleText(settings: AutocompleteSettings.SettingsState, provider: ProviderKind): String {
@@ -291,6 +335,7 @@ internal object ProviderStatusPresentation {
     CompletionTerminalReason.CANCELLED -> "cancelled"
     CompletionTerminalReason.TIMEOUT -> "timed out"
     CompletionTerminalReason.OUTPUT_LIMIT -> "output too long"
+    CompletionTerminalReason.UNSAFE_OUTPUT -> "unsafe output"
     CompletionTerminalReason.PROVIDER_FAILURE -> "request failed"
   }
 
@@ -306,6 +351,7 @@ internal object ProviderStatusPresentation {
     CompletionTerminalReason.CANCELLED -> "request was cancelled"
     CompletionTerminalReason.TIMEOUT -> "provider timed out"
     CompletionTerminalReason.OUTPUT_LIMIT -> "provider output exceeded the local safety envelope"
+    CompletionTerminalReason.UNSAFE_OUTPUT -> "provider output was not a safe single-line terminal command"
     CompletionTerminalReason.PROVIDER_FAILURE -> "provider request failed"
   }
 

@@ -4,6 +4,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionActivityPhase
 import com.kkoemets.subscriptionautocomplete.completion.CompletionActivitySnapshot
 import com.kkoemets.subscriptionautocomplete.completion.CompletionCandidateSource
 import com.kkoemets.subscriptionautocomplete.completion.CompletionStageTimings
+import com.kkoemets.subscriptionautocomplete.completion.CompletionSurface
 import com.kkoemets.subscriptionautocomplete.completion.CompletionTerminalReason
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import com.kkoemets.subscriptionautocomplete.settings.AutomaticCompletionEngine
@@ -75,6 +76,33 @@ class ProviderStatusPresentationTest {
         ),
       ),
     )
+  }
+
+  @Test
+  fun `terminal command activity and insertion are explicit`() {
+    val active = CompletionActivitySnapshot(
+      12,
+      CompletionActivityPhase.REQUESTING,
+      250,
+      provider = ProviderKind.CLAUDE,
+      surface = CompletionSurface.TERMINAL,
+    )
+    val inserted = active.copy(
+      phase = CompletionActivityPhase.READY,
+      elapsedMillis = 600,
+      terminalReason = CompletionTerminalReason.READY,
+    )
+
+    assertEquals(
+      "AI ◓ · Claude command · 250 ms",
+      ProviderStatusPresentation.text(settings(), ProviderKind.CODEX, active),
+    )
+    assertEquals(
+      "AI ✓ inserted · Claude",
+      ProviderStatusPresentation.text(settings(), ProviderKind.CODEX, inserted),
+    )
+    assertTrue(ProviderStatusPresentation.tooltip(settings(), ProviderKind.CODEX, active).contains("typed request remains"))
+    assertTrue(ProviderStatusPresentation.tooltip(settings(), ProviderKind.CODEX, inserted).contains("not executed"))
   }
 
   @Test

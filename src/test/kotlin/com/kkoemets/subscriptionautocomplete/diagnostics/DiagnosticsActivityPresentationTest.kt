@@ -4,6 +4,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionActivityPhase
 import com.kkoemets.subscriptionautocomplete.completion.CompletionActivitySnapshot
 import com.kkoemets.subscriptionautocomplete.completion.CompletionCandidateSource
 import com.kkoemets.subscriptionautocomplete.completion.CompletionStageTimings
+import com.kkoemets.subscriptionautocomplete.completion.CompletionSurface
 import com.kkoemets.subscriptionautocomplete.completion.CompletionTerminalReason
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import kotlin.test.Test
@@ -66,5 +67,23 @@ class DiagnosticsActivityPresentationTest {
     assertTrue(summary.contains("local cache"))
     assertTrue(!summary.contains("/Users/"))
     assertTrue(!summary.contains(".ts"))
+  }
+
+  @Test
+  fun `terminal activity is identified without logging the command`() {
+    val summary = DiagnosticsActivityPresentation.summary(
+      CompletionActivitySnapshot(
+        requestId = 8,
+        phase = CompletionActivityPhase.READY,
+        elapsedMillis = 320,
+        provider = ProviderKind.CODEX,
+        terminalReason = CompletionTerminalReason.READY,
+        timings = CompletionStageTimings(totalMillis = 320),
+        surface = CompletionSurface.TERMINAL,
+      ),
+      ProviderKind.CLAUDE,
+    )
+
+    assertEquals("Last terminal command: #8 · Codex provider · ready · total 320 ms", summary)
   }
 }

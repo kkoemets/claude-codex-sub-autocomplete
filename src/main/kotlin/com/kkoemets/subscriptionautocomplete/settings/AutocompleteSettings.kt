@@ -60,6 +60,7 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
     var allowCrossFileForBundledFim: Boolean = false,
     var recentEditContextEnabled: Boolean = false,
     var openTabContextEnabled: Boolean = false,
+    var terminalCompletionsEnabled: Boolean = true,
     var syntaxValidationMode: String = SyntaxValidationMode.SHADOW.name,
     var settingsRevision: Long = 0,
   ) {
@@ -108,6 +109,9 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
       state.codexModel = ProviderPolicy.DEFAULT_CODEX_MODEL
       state.codexReasoningEffort = ProviderPolicy.DEFAULT_CODEX_EFFORT
     }
+    if (state.settingsVersion < TERMINAL_COMPLETION_SETTINGS_VERSION) {
+      state.terminalCompletionsEnabled = true
+    }
     state.manualOnly = state.selectedAutomaticEngine() == AutomaticCompletionEngine.OFF
     state.settingsVersion = CURRENT_SETTINGS_VERSION
     state.settingsRevision = maxOf(currentState.settingsRevision, state.settingsRevision) + 1
@@ -144,7 +148,8 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
     private const val COMPLEX_INTENT_SETTINGS_VERSION = 3
     private const val NO_REASONING_DEFAULT_SETTINGS_VERSION = 4
     private const val SPARK_DEFAULT_SETTINGS_VERSION = 5
-    private const val CURRENT_SETTINGS_VERSION = 5
+    private const val TERMINAL_COMPLETION_SETTINGS_VERSION = 6
+    private const val CURRENT_SETTINGS_VERSION = TERMINAL_COMPLETION_SETTINGS_VERSION
     private const val LEGACY_DEFAULT_OUTPUT_TOKENS = 192
     private const val LEGACY_DEFAULT_CODEX_EFFORT = "low"
     private const val LEGACY_NO_REASONING_CODEX_EFFORT = "none"

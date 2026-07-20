@@ -23,6 +23,27 @@ class AutocompleteSettingsTest {
   }
 
   @Test
+  fun `new settings expose terminal commands behind an explicit hash trigger`() {
+    val state = AutocompleteSettings.SettingsState()
+
+    assertTrue(state.terminalCompletionsEnabled)
+  }
+
+  @Test
+  fun `pre-terminal settings migrate terminal commands on`() {
+    val settings = AutocompleteSettings()
+
+    settings.loadState(
+      AutocompleteSettings.SettingsState(
+        settingsVersion = 5,
+        terminalCompletionsEnabled = false,
+      ),
+    )
+
+    assertTrue(settings.state.terminalCompletionsEnabled)
+  }
+
+  @Test
   fun `existing automatic settings preserve subscription automatic completion`() {
     val settings = AutocompleteSettings()
 

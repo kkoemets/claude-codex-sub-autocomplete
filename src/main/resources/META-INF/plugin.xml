@@ -10,13 +10,15 @@
     <ul>
       <li>Switch explicitly between Claude Code and Codex and select a subscription model.</li>
       <li>Generate expressions, multiline blocks, and comment-directed implementations as native ghost text.</li>
+      <li>Turn a <code># request</code> into a reviewable shell command with Tab in IntelliJ's terminal.</li>
       <li>Use bounded language-aware editor context, with recent-edit, open-tab, and cross-file sources separately opt-in.</li>
       <li>Inspect connection state, request progress, safe errors, and latency from the status bar and diagnostics window.</li>
       <li>Use manual completion by default or opt into automatic requests.</li>
     </ul>
     <p>Requests go directly through the selected provider's installed CLI. The plugin does not operate
     a proxy or telemetry service. Provider tools, project inspection, file writes, and command execution
-    are disabled. Common credential patterns are redacted before requests are sent.</p>
+    are disabled. Terminal commands are inserted but never executed. Common credential patterns are redacted
+    before requests are sent.</p>
     <p><b>Requirements:</b> IntelliJ IDEA Community or Ultimate 2026.1 or newer, Java 21, and an installed and authenticated
     Claude Code or Codex CLI.</p>
     <p>Claude Code and Codex use agent models rather than purpose-built fill-in-the-middle models.
@@ -25,17 +27,19 @@
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>0.5.7 — Early Access</h3>
+    <h3>0.6.0 — Early Access</h3>
     <ul>
-      <li>Rejects provider explanations such as “the YAML structure is already complete” instead of rendering them as ghost text.</li>
-      <li>Adds a release-blocking safety matrix for every exposed Claude model and GPT model/reasoning combination.</li>
-      <li>Retains legitimate natural-language YAML scalar completions while filtering provider meta-responses before validation, caching, or rendering.</li>
+      <li>Adds explicit <code># request</code> + Tab shell-command generation in IntelliJ's classic and Reworked terminals.</li>
+      <li>Preserves ordinary shell completion and inserts generated commands for review without executing them.</li>
+      <li>Preserves changed input and rejects explanatory, multiline, control-sequence, and otherwise unsafe output.</li>
+      <li>Sends only bounded request metadata; terminal history, output, and project file contents remain local.</li>
     </ul>
   ]]></change-notes>
 
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
   <depends>com.intellij.modules.idea</depends>
+  <depends>org.jetbrains.plugins.terminal</depends>
 
   <extensions defaultExtensionNs="com.intellij">
     <applicationService
@@ -57,8 +61,12 @@
         serviceImplementation="com.kkoemets.subscriptionautocomplete.context.EditorContextTracker"/>
     <projectService
         serviceImplementation="com.kkoemets.subscriptionautocomplete.nextedit.NextEditProposalService"/>
+    <projectService
+        serviceImplementation="com.kkoemets.subscriptionautocomplete.terminal.TerminalCompletionService"/>
     <postStartupActivity
         implementation="com.kkoemets.subscriptionautocomplete.context.ContextTrackingStartupActivity"/>
+    <postStartupActivity
+        implementation="com.kkoemets.subscriptionautocomplete.terminal.TerminalCompletionStartupActivity"/>
     <notificationGroup
         id="Subscription Autocomplete"
         displayType="BALLOON"
@@ -68,6 +76,11 @@
     <statusBarWidgetFactory
         id="SubscriptionAutocomplete"
         implementation="com.kkoemets.subscriptionautocomplete.status.ProviderStatusWidgetFactory"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="org.jetbrains.plugins.terminal">
+    <allowedActionsProvider
+        implementation="com.kkoemets.subscriptionautocomplete.terminal.TerminalCompletionAllowedActionsProvider"/>
   </extensions>
 
   <actions>
@@ -84,5 +97,9 @@
         description="Request a read-only related-edit proposal from the selected subscription provider">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
+    <action id="SubscriptionAutocomplete.GenerateTerminalCommand"
+        class="com.kkoemets.subscriptionautocomplete.terminal.TerminalCompletionAction"
+        text="Generate Claude/Codex Terminal Command"
+        description="Replace a # request with a generated shell command without executing it"/>
   </actions>
 </idea-plugin>

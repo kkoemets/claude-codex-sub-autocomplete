@@ -93,6 +93,17 @@ class CompletionActivityStateTest {
   }
 
   @Test
+  fun `terminal surface is preserved through activity events`() {
+    val state = CompletionActivityState()
+
+    state.accept(
+      event(8, CompletionPipelineStage.BACKEND_STARTED).copy(surface = CompletionSurface.TERMINAL),
+    )
+
+    assertEquals(CompletionSurface.TERMINAL, state.snapshot().surface)
+  }
+
+  @Test
   fun `terminal state resets only while it is still current`() {
     val state = CompletionActivityState()
     state.accept(event(4, CompletionPipelineStage.FAILED))

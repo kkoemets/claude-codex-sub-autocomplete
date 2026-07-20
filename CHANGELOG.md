@@ -2,6 +2,14 @@
 
 All notable user-facing changes are documented here.
 
+## 0.6.0 — Early Access
+
+- Added explicit `# request` + Tab shell-command generation in IntelliJ's classic and Reworked terminals.
+- Intercepted Tab only in the focused terminal, preserved ordinary shell completion, and inserted generated commands for review without executing them.
+- Preserved typed requests when settings, terminal input, or provider state changes before a response arrives.
+- Added terminal-specific settings, activity status, diagnostics, privacy controls, and rejection of multiline, control-sequence, and explanatory output.
+- Shared only bounded terminal request metadata; terminal history, output, and project file contents remain local.
+
 ## 0.5.7 — Early Access
 
 - Rejected provider explanations and no-op descriptions instead of inserting them into structured files such as YAML.

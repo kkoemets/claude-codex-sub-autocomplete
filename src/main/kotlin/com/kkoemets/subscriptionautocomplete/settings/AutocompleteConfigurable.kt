@@ -18,8 +18,8 @@ import javax.swing.JButton
 import javax.swing.JPanel
 
 class AutocompleteConfigurable : Configurable {
-  private val enabled = JBCheckBox("Enable inline completions").apply {
-    toolTipText = "<html>Allow manual and optional automatic suggestions.<br>" +
+  private val enabled = JBCheckBox("Enable Claude/Codex completions").apply {
+    toolTipText = "<html>Allow editor suggestions and optional terminal command generation.<br>" +
       "Each request sends bounded code context directly through your selected provider's installed CLI.</html>"
   }
   private val automaticEngine = ComboBox<AutomaticCompletionEngine>(
@@ -78,6 +78,11 @@ class AutocompleteConfigurable : Configurable {
     toolTipText = "<html>Allow relevant snippets from other files to be sent to your selected Claude or Codex " +
       "subscription.<br>Leave this off to keep requests limited to the current file.</html>"
   }
+  private val terminalCompletions = JBCheckBox("Enable terminal commands (# request + Tab)").apply {
+    toolTipText = "<html>In IntelliJ's classic or Reworked terminal, type a one-line request beginning with # and press Tab.<br>" +
+      "The plugin asks the selected Claude or Codex subscription for one shell command and inserts it without running it.<br>" +
+      "Normal Tab completion is unchanged when the current command does not begin with #.</html>"
+  }
   private val diagnostics = JButton("Connection Tests and Diagnostics…")
   private var panel: JPanel? = null
 
@@ -95,6 +100,10 @@ class AutocompleteConfigurable : Configurable {
     val form = FormBuilder.createFormBuilder()
       .addComponent(enabled)
       .addLabeledComponent("Automatic typing completions:", automaticEngine)
+      .addComponent(terminalCompletions)
+      .addComponent(JBLabel(
+        "Terminal requests share only the request, shell, working directory, and detected project-marker names; not terminal history or output.",
+      ))
       .addSeparator()
       .addLabeledComponent("Active provider:", provider)
       .addLabeledComponent("Claude model:", claudeModel)
@@ -148,7 +157,8 @@ class AutocompleteConfigurable : Configurable {
       maxOutputTokens.text != state.maxOutputTokens.toString() ||
       recentEditContext.isSelected != state.recentEditContextEnabled ||
       openTabContext.isSelected != state.openTabContextEnabled ||
-      subscriptionCrossFile.isSelected != state.allowCrossFileForSubscription
+      subscriptionCrossFile.isSelected != state.allowCrossFileForSubscription ||
+      terminalCompletions.isSelected != state.terminalCompletionsEnabled
   }
 
   override fun apply() {
@@ -170,6 +180,7 @@ class AutocompleteConfigurable : Configurable {
       state.recentEditContextEnabled = recentEditContext.isSelected
       state.openTabContextEnabled = openTabContext.isSelected
       state.allowCrossFileForSubscription = subscriptionCrossFile.isSelected
+      state.terminalCompletionsEnabled = terminalCompletions.isSelected
     }
     ProjectManager.getInstance().openProjects.forEach { project ->
       WindowManager.getInstance().getStatusBar(project)?.updateWidget(ProviderStatusWidget.ID)
@@ -196,6 +207,7 @@ class AutocompleteConfigurable : Configurable {
     recentEditContext.isSelected = state.recentEditContextEnabled
     openTabContext.isSelected = state.openTabContextEnabled
     subscriptionCrossFile.isSelected = state.allowCrossFileForSubscription
+    terminalCompletions.isSelected = state.terminalCompletionsEnabled
   }
 
   override fun disposeUIResources() {

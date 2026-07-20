@@ -28,6 +28,7 @@ dependencies {
     } else {
       local(localIdePath)
     }
+    bundledPlugin("org.jetbrains.plugins.terminal")
     testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     testFramework(TestFrameworkType.Starter, configurationName = "ideTestImplementation")
   }
@@ -300,6 +301,9 @@ tasks.register("verifyMarketplaceMetadata") {
     check("<change-notes>" in metadata)
     check("<depends>com.intellij.modules.idea</depends>" in metadata) {
       "Marketplace compatibility must be limited to IntelliJ IDEA"
+    }
+    check("<depends>org.jetbrains.plugins.terminal</depends>" in metadata) {
+      "Terminal command generation requires the bundled Terminal plugin"
     }
     listOf(lightIcon, darkIcon).forEach { icon ->
       val svg = icon.asFile.readText()

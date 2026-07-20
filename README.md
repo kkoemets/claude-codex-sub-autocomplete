@@ -25,6 +25,7 @@ Claude Code and Codex are excellent at understanding code, but their agent inter
 - Choose a model exposed by your subscription.
 - Complete expressions, blocks, and comment-directed implementations.
 - Trigger manually with <kbd>Alt</kbd>+<kbd>\</kbd>, or opt into automatic completion.
+- Turn a <code># request</code> into a reviewable command with <kbd>Tab</kbd> in IntelliJ's terminal.
 - Reuse compatible recent suggestion tails without another provider request.
 - Include bounded recent-edit, open-tab, or cross-file context only when you enable it.
 - Inspect provider activity, latency, connection state, and safe error details from the status bar.
@@ -80,6 +81,18 @@ API-key authentication is intentionally rejected. A connection test reports when
 
 The `AI` status-bar entry shows the selected provider and current activity. Its menu provides the quickest path to manual completion, diagnostics, and settings.
 
+## Terminal commands
+
+The plugin works in IntelliJ's classic and Reworked terminals. At an empty shell prompt, type a request such as:
+
+```text
+# list the ten largest TypeScript files
+```
+
+Press <kbd>Tab</kbd>. The selected Claude or Codex model replaces that request with one shell command. Review it, then press <kbd>Enter</kbd> yourself if it is correct. The plugin never submits or executes the generated command.
+
+Terminal generation is deliberately narrow in this release: the request and result must each fit on one physical line, and ordinary Tab behavior is unchanged unless the current input starts with `#` followed by at least three characters. Enable or disable it independently in plugin settings or from the `AI` status menu.
+
 ## Language-aware context
 
 Dedicated context adapters cover Java, Kotlin, Groovy, Scala, JavaScript, TypeScript, JSX/TSX, Vue, Svelte, Python, Bash and other shell files, YAML, Docker Compose, SQL, HTML, XML, JSON, CSS/SCSS/Less, TOML, properties, INI, `.env`, and Markdown. Other IntelliJ-supported languages receive bounded generic context.
@@ -93,6 +106,7 @@ Requests travel directly through the locally installed provider CLI. This projec
 - No API keys or direct API billing.
 - No analytics, telemetry, prompt collection, or completion collection.
 - Provider tools, project inspection, file writes, and command execution are disabled.
+- Terminal requests send only the typed request, shell name, working directory, project name, and detected project-marker names. Terminal history, output, and file contents are not included.
 - Common credential patterns are redacted before a request is sent.
 - Diagnostics contain operational metadata, not source code or prompts.
 - Automatic completion, recent-edit context, open-tab context, and cross-file context are off by default.
@@ -104,13 +118,13 @@ See the [Privacy Policy](PRIVACY.md) and [End User License Agreement](EULA.md) f
 
 Claude Code and Codex use agent models rather than purpose-built fill-in-the-middle models. An uncached suggestion can take several seconds, and quality depends on the selected model and available context. Automatic completion can also consume subscription allowance quickly; manual completion is the practical default for slower models.
 
-The plugin does not provide chat, autonomous editing, repository-wide semantic search, or automatic multi-file changes. Related cross-file suggestions remain read-only previews.
+The plugin does not provide chat, autonomous editing, repository-wide semantic search, or automatic multi-file changes. Related cross-file suggestions remain read-only previews. Terminal generation currently produces one command line at a time.
 
 ## Troubleshooting
 
 ### Nothing appears
 
-- Confirm **Enable inline completions** is checked.
+- Confirm **Enable Claude/Codex completions** is checked.
 - Use <kbd>Alt</kbd>+<kbd>\</kbd> to separate provider latency from automatic-trigger pacing.
 - Open the status-bar menu and run **Connection Tests and Diagnostics**.
 - Check that IntelliJ IDEA can find `claude` or `codex` in the environment it was launched with.
@@ -118,6 +132,13 @@ The plugin does not provide chat, autonomous editing, repository-wide semantic s
 ### Subscription login fails
 
 Run the provider's login-status command in a terminal, then restart IntelliJ IDEA if the CLI was installed or authenticated after the IDE started. API-key login is not accepted on either provider path.
+
+### `# request` + Tab does nothing in the terminal
+
+- Confirm **Enable terminal commands (# request + Tab)** is enabled.
+- Open diagnostics and confirm **Terminal Tab integration attached** appears. It supports both classic and Reworked Terminal sessions.
+- Start the current command line with `#` and provide at least three descriptive characters.
+- Wait for the shell prompt to be ready; the action intentionally does not run while another command is active.
 
 ### A completion stops early or is rejected
 
