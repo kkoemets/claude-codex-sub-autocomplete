@@ -21,7 +21,7 @@ Common credential patterns are redacted before a request is sent. Provider tools
 inspection, file writes, and command execution are disabled for completion requests.
 
 When You explicitly type a `# request` and press Tab in IntelliJ's terminal, the Plugin
-sends the bounded request, shell name, working directory, project name, and detected project-marker
+sends the bounded request, shell name, coarse operating-system family, working directory, project name, and detected project-marker
 names. It does not send terminal history, terminal output, environment variables, or project-file
 contents for that request. A returned command is inserted for Your review and is never submitted or
 executed by the Plugin.

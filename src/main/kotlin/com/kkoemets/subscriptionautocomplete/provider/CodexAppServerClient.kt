@@ -672,7 +672,7 @@ internal object CodexAppServerProtocol {
     addProperty("baseInstructions", prompt.systemPrompt)
     addProperty(
       "developerInstructions",
-      "Complete only the supplied cursor text, using at most $maxOutputTokens approximate tokens. " +
+      "Use at most $maxOutputTokens approximate tokens. " +
         "Never call tools, inspect files, or execute commands.",
     )
     add("config", JsonObject().apply {

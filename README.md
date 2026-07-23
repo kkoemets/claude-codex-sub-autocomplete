@@ -106,7 +106,7 @@ Requests travel directly through the locally installed provider CLI. This projec
 - No API keys or direct API billing.
 - No analytics, telemetry, prompt collection, or completion collection.
 - Provider tools, project inspection, file writes, and command execution are disabled.
-- Terminal requests send only the typed request, shell name, working directory, project name, and detected project-marker names. Terminal history, output, and file contents are not included.
+- Terminal requests send only the typed request, shell name, coarse operating-system family, working directory, project name, and detected project-marker names. Terminal history, output, and file contents are not included.
 - Common credential patterns are redacted before a request is sent.
 - Diagnostics contain operational metadata, not source code or prompts.
 - Automatic completion, recent-edit context, open-tab context, and cross-file context are off by default.
@@ -151,14 +151,27 @@ For additional help, read [Support](SUPPORT.md) or open a bug report with diagno
 ```bash
 ./gradlew test
 ./gradlew autocompleteDeterministicEval
+./gradlew terminalDeterministicEval
+./gradlew terminalLiveEval
 ./gradlew buildPlugin
 ./gradlew verifyPlugin
 ```
 
-The complete pre-release check is:
+`terminalLiveEval` is the explicit network-backed quality gate: it runs one shared
+50-case suite against Claude Haiku and Codex `gpt-5.4`, with Codex reasoning set to `none`.
+It requires at least 90% from each provider and targets 92% or better. It does not
+open or control IntelliJ.
+
+The complete headless pre-release check is:
 
 ```bash
 ./gradlew clean autocompleteReleaseGate --no-daemon
+```
+
+The real-IDE smoke test is intentionally separate because it opens and controls an IntelliJ window:
+
+```bash
+./gradlew autocompleteInstalledIdeTest --no-daemon
 ```
 
 Install the resulting ZIP from `build/distributions/`. See [Contributing](CONTRIBUTING.md) for development conventions and [Releasing](RELEASING.md) for the credentialed local signing and Marketplace workflow.

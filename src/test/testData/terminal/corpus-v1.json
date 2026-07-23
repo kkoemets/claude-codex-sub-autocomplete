@@ -1,0 +1,1424 @@
+{
+  "version": "terminal-positive-corpus-v1",
+  "categories": [
+    {
+      "id": "filesystem",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "sample-project",
+      "projectMarkers": [],
+      "cases": [
+        {
+          "id": "files-current-directory",
+          "request": "# show the current directory",
+          "reference": "pwd",
+          "requiredGroups": [["pwd"]]
+        },
+        {
+          "id": "files-list-all",
+          "request": "# list all files including hidden ones",
+          "reference": "ls -la",
+          "requiredGroups": [["ls"], ["-la", "-al", "-a -l"]]
+        },
+        {
+          "id": "files-list-child-directories",
+          "request": "# list immediate subdirectories",
+          "reference": "find . -mindepth 1 -maxdepth 1 -type d -print",
+          "platform": "linux",
+          "requiredGroups": [["find", "ls"], ["-maxdepth 1", "*/"], ["-type d", "-d"]]
+        },
+        {
+          "id": "files-recent-twenty",
+          "request": "# recursively show the 20 most recently modified files",
+          "reference": "find . -type f -printf '%T@ %p\\n' | sort -nr | head -20 | cut -d' ' -f2-",
+          "platform": "linux",
+          "requiredGroups": [["find"], ["-type f"], ["sort"], ["20"]]
+        },
+        {
+          "id": "files-largest-ten",
+          "request": "# show the 10 largest files below here",
+          "reference": "find . -type f -exec du -k {} + | sort -n | tail -10",
+          "requiredGroups": [["find", "du"], ["sort"], ["10"]]
+        },
+        {
+          "id": "files-disk-usage-items",
+          "request": "# show disk usage of each item here",
+          "reference": "du -sh ./* | sort -h",
+          "requiredGroups": [["du"], ["-sh", "-h"]]
+        },
+        {
+          "id": "files-create-kotlin-layout",
+          "request": "# create main and test kotlin source directories",
+          "reference": "mkdir -p src/{main,test}/kotlin",
+          "requiredGroups": [["mkdir"], ["src"], ["main"], ["test"], ["kotlin"]]
+        },
+        {
+          "id": "files-create-log-files",
+          "request": "# create empty app log and error log files",
+          "reference": "touch app.log error.log",
+          "requiredGroups": [["touch"], ["app.log"], ["error.log"]]
+        },
+        {
+          "id": "files-backup-config",
+          "request": "# back up the config directory",
+          "reference": "cp -R config config.backup",
+          "requiredGroups": [["cp", "tar", "zip", "rsync"], ["config"]]
+        },
+        {
+          "id": "files-rename-output",
+          "request": "# rename output-old to output",
+          "reference": "mv output-old output",
+          "requiredGroups": [["mv"], ["output-old"], ["output"]]
+        }
+      ]
+    },
+    {
+      "id": "python",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "python-app",
+      "projectMarkers": ["python", "git"],
+      "cases": [
+        {
+          "id": "python-create-venv",
+          "request": "# create a python virtual environment at .venv",
+          "reference": "python3 -m venv .venv",
+          "requiredGroups": [["python"], ["venv"], [".venv"]]
+        },
+        {
+          "id": "python-activate-venv",
+          "request": "# activate .venv in zsh",
+          "reference": "source .venv/bin/activate",
+          "requiredGroups": [["source", "."], [".venv/bin/activate"]]
+        },
+        {
+          "id": "python-install-requirements",
+          "request": "# install python requirements",
+          "reference": "python -m pip install -r requirements.txt",
+          "requiredGroups": [["pip"], ["install"], ["requirements.txt"]]
+        },
+        {
+          "id": "python-install-editable",
+          "request": "# install this python project in editable mode",
+          "reference": "python -m pip install -e .",
+          "requiredGroups": [["pip"], ["install"], ["-e", "--editable"]]
+        },
+        {
+          "id": "python-pytest",
+          "request": "# run all pytest tests",
+          "reference": "python -m pytest",
+          "requiredGroups": [["pytest"]]
+        },
+        {
+          "id": "python-cache-test-file",
+          "request": "# run the cache service pytest file",
+          "reference": "python -m pytest tests/test_cache_service.py",
+          "requiredGroups": [["pytest"], ["tests/test_cache_service.py"]]
+        },
+        {
+          "id": "python-cache-test-method",
+          "request": "# run tests/test_cache_service.py::test_expiration with pytest",
+          "reference": "python -m pytest tests/test_cache_service.py::test_expiration",
+          "requiredGroups": [["pytest"], ["test_expiration"]]
+        },
+        {
+          "id": "python-pytest-coverage",
+          "request": "# run pytest with branch coverage for src",
+          "reference": "python -m pytest --cov=src --cov-branch",
+          "requiredGroups": [["pytest"], ["cov=src", "--cov src"], ["cov-branch"]]
+        },
+        {
+          "id": "python-ruff-check",
+          "request": "# run ruff check on src and tests",
+          "reference": "ruff check src tests",
+          "requiredGroups": [["ruff"], ["check"], ["src"], ["tests"]]
+        },
+        {
+          "id": "python-mypy",
+          "request": "# typecheck the src directory with mypy",
+          "reference": "mypy src",
+          "requiredGroups": [["mypy"], ["src"]]
+        }
+      ]
+    },
+    {
+      "id": "docker",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "container-app",
+      "projectMarkers": ["docker", "git"],
+      "cases": [
+        {
+          "id": "docker-build-api",
+          "request": "# build the docker image and tag it api:local",
+          "reference": "docker build -t api:local .",
+          "requiredGroups": [["docker"], ["build"], ["api:local"]]
+        },
+        {
+          "id": "docker-run-api",
+          "request": "# run api:local temporarily with local port 8080 mapped to container port 8080",
+          "reference": "docker run --rm -p 8080:8080 api:local",
+          "requiredGroups": [["docker"], ["run"], ["8080:8080"], ["api:local"]]
+        },
+        {
+          "id": "docker-list-running",
+          "request": "# list running docker containers",
+          "reference": "docker ps",
+          "requiredGroups": [["docker"], ["ps"]]
+        },
+        {
+          "id": "docker-api-logs",
+          "request": "# show the last 100 log lines from the container named api",
+          "reference": "docker logs --tail 100 api",
+          "requiredGroups": [["docker"], ["logs"], ["100"], ["api"]]
+        },
+        {
+          "id": "docker-follow-api-logs",
+          "request": "# follow logs from the container named api",
+          "reference": "docker logs --follow api",
+          "requiredGroups": [["docker"], ["logs"], ["follow", "-f"], ["api"]]
+        },
+        {
+          "id": "docker-shell-api",
+          "request": "# open a shell in the api container",
+          "reference": "docker exec -it api sh",
+          "requiredGroups": [["docker"], ["exec"], ["api"], ["sh", "bash"]]
+        },
+        {
+          "id": "docker-api-ip",
+          "request": "# inspect the api container ip address",
+          "reference": "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' api",
+          "requiredGroups": [["docker"], ["inspect"], ["IPAddress"], ["api"]]
+        },
+        {
+          "id": "docker-stop-api",
+          "request": "# stop the api container",
+          "reference": "docker stop api",
+          "requiredGroups": [["docker"], ["stop"], ["api"]]
+        },
+        {
+          "id": "docker-remove-api",
+          "request": "# remove the stopped api container",
+          "reference": "docker rm api",
+          "requiredGroups": [["docker"], ["rm", "container remove"], ["api"]]
+        },
+        {
+          "id": "docker-copy-api-log",
+          "request": "# copy api:/app/logs/app.log to ./app.log",
+          "reference": "docker cp api:/app/logs/app.log ./app.log",
+          "requiredGroups": [["docker"], ["cp"], ["api:/app/logs/app.log"], ["app.log"]]
+        }
+      ]
+    },
+    {
+      "id": "docker-compose",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "compose-app",
+      "projectMarkers": ["docker", "docker-compose", "git"],
+      "cases": [
+        {
+          "id": "compose-validate",
+          "request": "# validate the docker compose configuration",
+          "reference": "docker compose config --quiet",
+          "requiredGroups": [["docker compose", "docker-compose"], ["config"]]
+        },
+        {
+          "id": "compose-up",
+          "request": "# start all compose services in the background",
+          "reference": "docker compose up -d",
+          "requiredGroups": [["docker compose", "docker-compose"], ["up"], ["-d", "--detach"]]
+        },
+        {
+          "id": "compose-build-api",
+          "request": "# build only the compose api service",
+          "reference": "docker compose build api",
+          "requiredGroups": [["docker compose", "docker-compose"], ["build"], ["api"]]
+        },
+        {
+          "id": "compose-api-logs",
+          "request": "# show the last 100 log lines from the api service",
+          "reference": "docker compose logs --tail=100 api",
+          "requiredGroups": [["docker compose", "docker-compose"], ["logs"], ["100"], ["api"]]
+        },
+        {
+          "id": "compose-follow-api-worker",
+          "request": "# follow api and worker compose logs",
+          "reference": "docker compose logs --follow api worker",
+          "requiredGroups": [["docker compose", "docker-compose"], ["logs"], ["follow", "-f"], ["api"], ["worker"]]
+        },
+        {
+          "id": "compose-shell-api",
+          "request": "# open bash in the compose api service",
+          "reference": "docker compose exec api bash",
+          "requiredGroups": [["docker compose", "docker-compose"], ["exec"], ["api"], ["bash"]]
+        },
+        {
+          "id": "compose-run-migrate",
+          "request": "# run the compose service named migrate once and remove its container afterward",
+          "reference": "docker compose run --rm migrate",
+          "requiredGroups": [["docker compose", "docker-compose"], ["run"], ["migrate"], ["--rm"]]
+        },
+        {
+          "id": "compose-restart-worker",
+          "request": "# restart the compose worker service",
+          "reference": "docker compose restart worker",
+          "requiredGroups": [["docker compose", "docker-compose"], ["restart"], ["worker"]]
+        },
+        {
+          "id": "compose-down",
+          "request": "# stop and remove compose containers",
+          "reference": "docker compose down",
+          "requiredGroups": [["docker compose", "docker-compose"], ["down"]]
+        },
+        {
+          "id": "compose-down-volumes",
+          "request": "# remove compose containers and their volumes",
+          "reference": "docker compose down --volumes",
+          "requiredGroups": [["docker compose", "docker-compose"], ["down"], ["volumes", "-v"]]
+        }
+      ]
+    },
+    {
+      "id": "kubernetes",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "kubernetes-app",
+      "projectMarkers": ["docker", "git"],
+      "cases": [
+        {
+          "id": "kubectl-current-context",
+          "request": "# show the current kubernetes context",
+          "reference": "kubectl config current-context",
+          "requiredGroups": [["kubectl"], ["config"], ["current-context"]]
+        },
+        {
+          "id": "kubectl-get-pods",
+          "request": "# list pods in the current namespace",
+          "reference": "kubectl get pods",
+          "requiredGroups": [["kubectl"], ["get"], ["pods"]]
+        },
+        {
+          "id": "kubectl-get-all-staging",
+          "request": "# list all resources in the staging namespace",
+          "reference": "kubectl get all -n staging",
+          "requiredGroups": [["kubectl"], ["get"], ["all"], ["staging"]]
+        },
+        {
+          "id": "kubectl-api-pod-logs",
+          "request": "# show the last 100 api pod log lines",
+          "reference": "kubectl logs --tail=100 pod/api-0",
+          "requiredGroups": [["kubectl"], ["logs"], ["100"], ["api-0", "api"]]
+        },
+        {
+          "id": "kubectl-follow-api-deployment",
+          "request": "# follow logs from the api deployment",
+          "reference": "kubectl logs -f deployment/api",
+          "requiredGroups": [["kubectl"], ["logs"], ["-f", "--follow"], ["deployment/api"]]
+        },
+        {
+          "id": "kubectl-shell-api-pod",
+          "request": "# open a shell in the api pod",
+          "reference": "kubectl exec -it pod/api-0 -- sh",
+          "requiredGroups": [["kubectl"], ["exec"], ["api-0", "api"], ["sh", "bash"]]
+        },
+        {
+          "id": "kubectl-port-forward-api",
+          "request": "# forward local port 8080 to port 80 on service api",
+          "reference": "kubectl port-forward service/api 8080:80",
+          "requiredGroups": [["kubectl"], ["port-forward"], ["service/api", "svc/api"], ["8080:80"]]
+        },
+        {
+          "id": "kubectl-apply-manifests",
+          "request": "# apply kubernetes manifests from the k8s directory",
+          "reference": "kubectl apply -f k8s/",
+          "requiredGroups": [["kubectl"], ["apply"], ["-f"], ["k8s"]]
+        },
+        {
+          "id": "kubectl-api-rollout",
+          "request": "# wait for the api deployment rollout",
+          "reference": "kubectl rollout status deployment/api",
+          "requiredGroups": [["kubectl"], ["rollout"], ["status"], ["deployment/api"]]
+        },
+        {
+          "id": "kubectl-scale-worker",
+          "request": "# scale the worker deployment to three replicas",
+          "reference": "kubectl scale deployment/worker --replicas=3",
+          "requiredGroups": [["kubectl"], ["scale"], ["worker"], ["replicas=3"]]
+        }
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "infrastructure",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "helm-list-staging",
+          "request": "# list helm releases in staging",
+          "reference": "helm list -n staging",
+          "requiredGroups": [["helm"], ["list"], ["staging"]]
+        },
+        {
+          "id": "helm-template-api",
+          "request": "# render the api helm chart locally",
+          "reference": "helm template api ./charts/api",
+          "requiredGroups": [["helm"], ["template"], ["api"], ["charts/api"]]
+        },
+        {
+          "id": "helm-upgrade-api",
+          "request": "# install or upgrade api in staging",
+          "reference": "helm upgrade --install api ./charts/api -n staging --create-namespace",
+          "requiredGroups": [["helm"], ["upgrade"], ["install"], ["api"], ["staging"]]
+        },
+        {
+          "id": "terraform-format-check",
+          "request": "# check terraform formatting recursively",
+          "reference": "terraform fmt -check -recursive",
+          "requiredGroups": [["terraform"], ["fmt"], ["check"], ["recursive"]]
+        },
+        {
+          "id": "terraform-init",
+          "request": "# initialize terraform",
+          "reference": "terraform init",
+          "requiredGroups": [["terraform"], ["init"]]
+        },
+        {
+          "id": "terraform-validate",
+          "request": "# validate terraform configuration",
+          "reference": "terraform validate",
+          "requiredGroups": [["terraform"], ["validate"]]
+        },
+        {
+          "id": "terraform-plan",
+          "request": "# create a terraform plan file",
+          "reference": "terraform plan -out=tfplan",
+          "requiredGroups": [["terraform"], ["plan"], ["tfplan"]]
+        },
+        {
+          "id": "terraform-apply-plan",
+          "request": "# apply the saved terraform plan",
+          "reference": "terraform apply tfplan",
+          "requiredGroups": [["terraform"], ["apply"], ["tfplan"]]
+        },
+        {
+          "id": "aws-current-identity",
+          "request": "# show the current aws identity",
+          "reference": "aws sts get-caller-identity",
+          "requiredGroups": [["aws"], ["sts"], ["get-caller-identity"]]
+        },
+        {
+          "id": "gcloud-list-projects",
+          "request": "# list accessible google cloud projects",
+          "reference": "gcloud projects list",
+          "requiredGroups": [["gcloud"], ["projects"], ["list"]]
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "service-app",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "system-port-8080-mac",
+          "request": "# show what is listening on port 8080 on mac",
+          "reference": "lsof -nP -iTCP:8080 -sTCP:LISTEN",
+          "requiredGroups": [["lsof"], ["8080"]]
+        },
+        {
+          "id": "system-listening-tcp-linux",
+          "request": "# show listening tcp ports on linux",
+          "reference": "ss -ltnp",
+          "shell": "bash",
+          "platform": "linux",
+          "requiredGroups": [["ss", "netstat"], ["-l", "listen"]]
+        },
+        {
+          "id": "system-stop-process",
+          "request": "# gracefully stop process 12345",
+          "reference": "kill 12345",
+          "requiredGroups": [["kill"], ["12345"]]
+        },
+        {
+          "id": "system-force-stop-process",
+          "request": "# force stop process 12345",
+          "reference": "kill -9 12345",
+          "requiredGroups": [["kill"], ["-9", "KILL"], ["12345"]]
+        },
+        {
+          "id": "system-top-cpu",
+          "request": "# show the ten processes using the most cpu",
+          "reference": "ps aux | sort -nrk 3 | head -10",
+          "requiredGroups": [["ps", "top"], ["sort", "-r"], ["10", "11"]]
+        },
+        {
+          "id": "system-top-memory",
+          "request": "# show the ten processes using the most memory",
+          "reference": "ps aux | sort -nrk 4 | head -10",
+          "requiredGroups": [["ps", "top"], ["sort"], ["10", "11"]]
+        },
+        {
+          "id": "system-filesystem-space",
+          "request": "# show filesystem free space",
+          "reference": "df -h",
+          "requiredGroups": [["df"], ["-h"]]
+        },
+        {
+          "id": "system-open-files-process",
+          "request": "# show open files for process 12345",
+          "reference": "lsof -p 12345",
+          "requiredGroups": [["lsof"], ["-p"], ["12345"]]
+        },
+        {
+          "id": "system-follow-application-log",
+          "request": "# follow logs/application.log",
+          "reference": "tail -F logs/application.log",
+          "requiredGroups": [["tail"], ["-F", "-f"], ["application.log"]]
+        },
+        {
+          "id": "system-api-journal-hour",
+          "request": "# show api.service logs from the last hour",
+          "reference": "journalctl -u api.service --since '1 hour ago'",
+          "shell": "bash",
+          "platform": "linux",
+          "requiredGroups": [["journalctl"], ["api.service"], ["1 hour ago"]]
+        }
+      ]
+    },
+    {
+      "id": "network",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "api-app",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "network-health-curl",
+          "request": "# call the local api health endpoint",
+          "reference": "curl --fail --silent --show-error http://localhost:8080/health",
+          "requiredGroups": [["curl"], ["localhost:8080/health"]]
+        },
+        {
+          "id": "network-example-headers",
+          "request": "# show response headers from example com",
+          "reference": "curl -I https://example.com",
+          "requiredGroups": [["curl"], ["-I", "--head"], ["example.com"]]
+        },
+        {
+          "id": "network-post-user-json",
+          "request": "# post user.json as json to http://localhost:8080/users",
+          "reference": "curl --fail --silent --show-error -H 'Content-Type: application/json' -d @user.json http://localhost:8080/users",
+          "requiredGroups": [["curl"], ["Content-Type"], ["user.json"], ["localhost:8080/users"]]
+        },
+        {
+          "id": "network-download-release",
+          "request": "# download https://example.com/releases/app.zip preserving its filename",
+          "reference": "curl -fLO https://example.com/releases/app.zip",
+          "requiredGroups": [["curl", "wget"], ["app.zip"], ["example.com"]]
+        },
+        {
+          "id": "network-resolve-api-dns",
+          "request": "# resolve the api example com dns records",
+          "reference": "dig api.example.com",
+          "requiredGroups": [["dig", "nslookup", "host"], ["api.example.com"]]
+        },
+        {
+          "id": "network-ping-example-five",
+          "request": "# ping example com five times",
+          "reference": "ping -c 5 example.com",
+          "requiredGroups": [["ping"], ["5"], ["example.com"]]
+        },
+        {
+          "id": "network-trace-example",
+          "request": "# trace the route to example com",
+          "reference": "traceroute example.com",
+          "requiredGroups": [["traceroute", "tracepath"], ["example.com"]]
+        },
+        {
+          "id": "network-ssh-app-server",
+          "request": "# ssh to deploy@app.example.com",
+          "reference": "ssh deploy@app.example.com",
+          "requiredGroups": [["ssh"], ["deploy@app.example.com"]]
+        },
+        {
+          "id": "network-scp-release",
+          "request": "# copy release.zip to deploy@app.example.com:/srv/app/",
+          "reference": "scp release.zip deploy@app.example.com:/srv/app/",
+          "requiredGroups": [["scp"], ["release.zip"], ["deploy@app.example.com:/srv/app"]]
+        },
+        {
+          "id": "network-rsync-dist",
+          "request": "# rsync dist/ to deploy@app.example.com:/srv/app/dist/ and delete obsolete remote files",
+          "reference": "rsync -avz --delete dist/ deploy@app.example.com:/srv/app/dist/",
+          "requiredGroups": [["rsync"], ["--delete"], ["dist"], ["deploy@app.example.com"]],
+          "validator": "rsync-local-dist-to-app-server"
+        }
+      ]
+    },
+    {
+      "id": "databases",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "database-app",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "database-postgres-list",
+          "request": "# list postgres databases using database url",
+          "reference": "psql \"$DATABASE_URL\" -l",
+          "requiredGroups": [["psql"], ["DATABASE_URL"], ["-l", "--list"]]
+        },
+        {
+          "id": "database-postgres-new-users",
+          "request": "# use DATABASE_URL to show the ten newest rows from the postgres users table by created_at",
+          "reference": "psql \"$DATABASE_URL\" -c 'SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 10;'",
+          "requiredGroups": [["psql"], ["DATABASE_URL"], ["users"], ["created_at"], ["10"]]
+        },
+        {
+          "id": "database-postgres-dump",
+          "request": "# dump DATABASE_URL in custom format to backup.dump",
+          "reference": "pg_dump \"$DATABASE_URL\" -Fc -f backup.dump",
+          "requiredGroups": [["pg_dump"], ["DATABASE_URL"], ["backup.dump"]]
+        },
+        {
+          "id": "database-postgres-restore",
+          "request": "# restore backup.dump into DATABASE_URL with pg_restore",
+          "reference": "pg_restore --dbname=\"$DATABASE_URL\" backup.dump",
+          "requiredGroups": [["pg_restore"], ["DATABASE_URL"], ["backup.dump"]]
+        },
+        {
+          "id": "database-mysql-list",
+          "request": "# list mysql databases",
+          "reference": "mysql -e 'SHOW DATABASES;'",
+          "requiredGroups": [["mysql"], ["SHOW DATABASES"]]
+        },
+        {
+          "id": "database-mysql-dump",
+          "request": "# dump the app mysql database to app.sql",
+          "reference": "mysqldump app > app.sql",
+          "requiredGroups": [["mysqldump"], ["app"], ["app.sql"]]
+        },
+        {
+          "id": "database-sqlite-tables",
+          "request": "# list tables in app.db with sqlite",
+          "reference": "sqlite3 app.db '.tables'",
+          "requiredGroups": [["sqlite3"], ["app.db"], [".tables"]]
+        },
+        {
+          "id": "database-sqlite-new-users",
+          "request": "# show the ten newest users by created_at from app.db",
+          "reference": "sqlite3 -header -column app.db 'SELECT * FROM users ORDER BY created_at DESC LIMIT 10;'",
+          "requiredGroups": [["sqlite3"], ["app.db"], ["users"], ["created_at"], ["10"]]
+        },
+        {
+          "id": "database-redis-ping",
+          "request": "# ping redis using REDIS_URL",
+          "reference": "redis-cli -u \"$REDIS_URL\" PING",
+          "requiredGroups": [["redis-cli"], ["REDIS_URL"], ["PING"]]
+        },
+        {
+          "id": "database-mongodb-list",
+          "request": "# list mongodb databases",
+          "reference": "mongosh \"$MONGODB_URI\" --eval 'db.adminCommand({listDatabases: 1})'",
+          "requiredGroups": [["mongosh", "mongo "], ["listDatabases", "show databases"]]
+        }
+      ]
+    },
+    {
+      "id": "archives",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "release-tools",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "archive-create-tar",
+          "request": "# create source.tar.gz containing src and package.json",
+          "reference": "tar -czf source.tar.gz src package.json",
+          "requiredGroups": [["tar"], ["source.tar.gz"], ["src"], ["package.json"]]
+        },
+        {
+          "id": "archive-extract-tar",
+          "request": "# extract source.tar.gz here",
+          "reference": "tar -xzf source.tar.gz",
+          "requiredGroups": [["tar"], ["-x", "extract"], ["source.tar.gz"]]
+        },
+        {
+          "id": "archive-create-zip",
+          "request": "# create release.zip from dist",
+          "reference": "zip -r release.zip dist",
+          "requiredGroups": [["zip"], ["release.zip"], ["dist"]]
+        },
+        {
+          "id": "archive-extract-zip",
+          "request": "# extract release zip into release directory",
+          "reference": "unzip release.zip -d release",
+          "requiredGroups": [["unzip"], ["release.zip"], ["release"]]
+        },
+        {
+          "id": "archive-sha256-linux",
+          "request": "# calculate sha256 of release zip on linux",
+          "reference": "sha256sum release.zip",
+          "requiredGroups": [["sha256sum", "openssl dgst -sha256"], ["release.zip"]]
+        },
+        {
+          "id": "archive-sha256-mac",
+          "request": "# calculate sha256 of release zip on mac",
+          "reference": "shasum -a 256 release.zip",
+          "shell": "zsh",
+          "platform": "macos",
+          "requiredGroups": [["shasum"], ["256"], ["release.zip"]]
+        },
+        {
+          "id": "archive-verify-checksums",
+          "request": "# verify checksums from sha256sums",
+          "reference": "sha256sum -c SHA256SUMS",
+          "requiredGroups": [["sha256sum"], ["-c", "--check"], ["SHA256SUMS"]]
+        },
+        {
+          "id": "archive-base64-config",
+          "request": "# base64 encode config json into config b64",
+          "reference": "base64 < config.json > config.b64",
+          "requiredGroups": [["base64"], ["config.json"], ["config.b64"]]
+        },
+        {
+          "id": "archive-gzip-log",
+          "request": "# gzip application.log to application.log.gz while keeping the original",
+          "reference": "gzip -c application.log > application.log.gz",
+          "requiredGroups": [["gzip"], ["-c", "--stdout", "-k", "--keep"], ["application.log"], ["application.log.gz", "-k", "--keep"]]
+        },
+        {
+          "id": "archive-convert-video",
+          "request": "# convert input mov to h264 mp4",
+          "reference": "ffmpeg -i input.mov -c:v libx264 -c:a aac output.mp4",
+          "requiredGroups": [["ffmpeg"], ["input.mov"], ["libx264"], ["output.mp4"]]
+        }
+      ]
+    },
+    {
+      "id": "shell-environment",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "shell-project",
+      "projectMarkers": ["node", "git"],
+      "cases": [
+        {
+          "id": "shell-debug-node-command",
+          "request": "# run node server.js with DEBUG=1 for this command",
+          "reference": "DEBUG=1 node server.js",
+          "requiredGroups": [["DEBUG=1"], ["node"], ["server.js"]]
+        },
+        {
+          "id": "shell-export-node-env",
+          "request": "# export NODE_ENV=development for this shell",
+          "reference": "export NODE_ENV=development",
+          "requiredGroups": [["export"], ["NODE_ENV=development"]]
+        },
+        {
+          "id": "shell-path-lines",
+          "request": "# show each path entry on its own line in zsh",
+          "reference": "printf '%s\\n' \"${path[@]}\"",
+          "requiredGroups": [["printf", "print", "echo"], ["path"]]
+        },
+        {
+          "id": "shell-command-v-node",
+          "request": "# show where node is resolved from",
+          "reference": "command -v node",
+          "requiredGroups": [["command -v", "which", "type"], ["node"]]
+        },
+        {
+          "id": "shell-reload-zsh",
+          "request": "# reload the zsh configuration",
+          "reference": "source ~/.zshrc",
+          "requiredGroups": [["source", "."], [".zshrc"]]
+        },
+        {
+          "id": "powershell-recent-files",
+          "request": "# show the ten most recently modified files in powershell",
+          "reference": "Get-ChildItem -File -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 10",
+          "shell": "powershell",
+          "platform": "windows",
+          "requiredGroups": [["Get-ChildItem"], ["Sort-Object"], ["LastWriteTime"], ["10"]]
+        },
+        {
+          "id": "powershell-create-log",
+          "request": "# create the directory logs/archive and empty file logs/app.log in powershell",
+          "reference": "New-Item -ItemType Directory -Force logs/archive; New-Item -ItemType File -Force logs/app.log",
+          "shell": "powershell",
+          "platform": "windows",
+          "requiredGroups": [["New-Item"], ["Directory"], ["File"], ["logs/archive"], ["logs/app.log"]]
+        },
+        {
+          "id": "powershell-find-todos",
+          "request": "# find TODO comments in typescript files in powershell",
+          "reference": "Get-ChildItem -Recurse -Filter *.ts | Select-String -Pattern 'TODO'",
+          "shell": "powershell",
+          "platform": "windows",
+          "requiredGroups": [["Get-ChildItem"], ["Select-String"], ["*.ts"], ["TODO"]]
+        },
+        {
+          "id": "powershell-delete-builds",
+          "request": "# delete build directories below here in powershell",
+          "reference": "Get-ChildItem -Directory -Recurse -Filter build | Remove-Item -Recurse -Force",
+          "shell": "powershell",
+          "platform": "windows",
+          "requiredGroups": [["Get-ChildItem"], ["build"], ["Remove-Item"], ["Recurse"]]
+        },
+        {
+          "id": "powershell-switch-master-child-repos",
+          "request": "# switch immediate child git repos to master in powershell",
+          "reference": "Get-ChildItem -Directory | Where-Object { Test-Path (Join-Path $_.FullName '.git') } | ForEach-Object { git -C $_.FullName switch master }",
+          "shell": "powershell",
+          "platform": "windows",
+          "projectMarkers": ["git"],
+          "requiredGroups": [["Get-ChildItem"], ["git"], ["master"], [".git"]],
+          "validator": "git-immediate-child-repos-master"
+        }
+      ]
+    },
+    {
+      "id": "file-mutations",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "sample-project",
+      "projectMarkers": [],
+      "cases": [
+        {
+          "id": "mutate-delete-temporary-file",
+          "request": "# delete temporary.txt",
+          "reference": "rm -- temporary.txt",
+          "requiredGroups": [["rm"], ["temporary.txt"]]
+        },
+        {
+          "id": "mutate-delete-child-builds",
+          "request": "# delete every immediate module build directory",
+          "reference": "find . -mindepth 2 -maxdepth 2 -type d -name build -exec rm -rf -- {} +",
+          "requiredGroups": [["find", "for "], ["build"], ["rm"], ["-maxdepth 2", "*/"]],
+          "validator": "delete-immediate-child-builds"
+        },
+        {
+          "id": "mutate-delete-child-node-modules",
+          "request": "# delete node_modules from immediate subprojects",
+          "reference": "find . -mindepth 2 -maxdepth 2 -type d -name node_modules -prune -exec rm -rf -- {} +",
+          "projectMarkers": ["node"],
+          "requiredGroups": [["find"], ["node_modules"], ["rm"], ["-maxdepth 2"]]
+        },
+        {
+          "id": "mutate-delete-ds-store",
+          "request": "# delete all .DS_Store files below here",
+          "reference": "find . -type f -name .DS_Store -delete",
+          "platform": "macos",
+          "requiredGroups": [["find"], [".DS_Store"], ["-delete", "rm"]]
+        },
+        {
+          "id": "mutate-delete-python-caches",
+          "request": "# delete all python cache directories",
+          "reference": "find . -type d -name __pycache__ -prune -exec rm -rf -- {} +",
+          "projectMarkers": ["python"],
+          "requiredGroups": [["find"], ["__pycache__"], ["rm"]]
+        },
+        {
+          "id": "mutate-create-log-archive",
+          "request": "# create the logs/archive directory",
+          "reference": "mkdir -p logs/archive",
+          "requiredGroups": [["mkdir"], ["logs/archive"]]
+        },
+        {
+          "id": "mutate-copy-yaml-backup",
+          "request": "# copy all yaml files into config-backup",
+          "reference": "mkdir -p config-backup && cp -- *.yml *.yaml config-backup/",
+          "requiredGroups": [["cp"], ["*.yml", "*.yaml"], ["config-backup"]]
+        },
+        {
+          "id": "mutate-move-logs",
+          "request": "# move logs/*.log into logs/archive",
+          "reference": "mkdir -p logs/archive && mv -- logs/*.log logs/archive/",
+          "requiredGroups": [["mv"], ["*.log"], ["logs/archive"]]
+        },
+        {
+          "id": "mutate-delete-old-tmp-files",
+          "request": "# delete files in tmp older than seven days",
+          "reference": "find tmp -type f -mtime +7 -delete",
+          "requiredGroups": [["find"], ["tmp"], ["-mtime +7"], ["-delete", "rm"]]
+        },
+        {
+          "id": "mutate-recreate-dist",
+          "request": "# replace dist with a fresh empty directory",
+          "reference": "rm -rf -- dist && mkdir -p dist",
+          "requiredGroups": [["rm"], ["mkdir"], ["dist"]],
+          "validator": "recreate-local-dist"
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "typescript-app",
+      "projectMarkers": ["node", "git"],
+      "cases": [
+        {
+          "id": "search-todos-typescript",
+          "request": "# find TODO comments in typescript files",
+          "reference": "rg -n --glob '*.ts' 'TODO' .",
+          "requiredGroups": [["rg", "grep"], ["TODO"], [".ts"]]
+        },
+        {
+          "id": "search-user-service-no-build",
+          "request": "# find usages of UserService excluding build folders",
+          "reference": "rg -n --glob '!build/**' 'UserService' .",
+          "requiredGroups": [["rg", "grep"], ["UserService"], ["build"]]
+        },
+        {
+          "id": "search-python-requests-get",
+          "request": "# find python files containing requests.get",
+          "reference": "rg -l --glob '*.py' 'requests\\.get' .",
+          "projectMarkers": ["python"],
+          "requiredGroups": [["rg", "grep"], ["requests"], [".py"]]
+        },
+        {
+          "id": "search-compose-files",
+          "request": "# find files named docker compose yaml",
+          "reference": "find . -type f \\( -name 'docker-compose.yml' -o -name 'docker-compose.yaml' \\)",
+          "projectMarkers": ["docker-compose"],
+          "requiredGroups": [["find"], ["docker", "compose"], [".yml", ".yaml"]]
+        },
+        {
+          "id": "search-package-json-no-node-modules",
+          "request": "# find package json files excluding node_modules",
+          "reference": "find . -type d -name node_modules -prune -o -type f -name package.json -print",
+          "requiredGroups": [["find"], ["package.json"], ["node_modules"]]
+        },
+        {
+          "id": "search-connection-refused-logs",
+          "request": "# search case insensitively for connection refused in logs",
+          "reference": "rg -ni 'connection refused' --glob '*.log' .",
+          "requiredGroups": [["rg", "grep"], ["connection refused"], [".log", "logs"], ["-i", "-ni", "-in"]]
+        },
+        {
+          "id": "search-count-todos",
+          "request": "# count TODO comments below here",
+          "reference": "rg -n 'TODO' . | wc -l",
+          "requiredGroups": [["rg", "grep"], ["TODO"], ["wc"]]
+        },
+        {
+          "id": "search-empty-files",
+          "request": "# find empty files",
+          "reference": "find . -type f -empty -print",
+          "requiredGroups": [["find"], ["-type f"], ["-empty"]]
+        },
+        {
+          "id": "search-symbolic-links",
+          "request": "# find symbolic links",
+          "reference": "find . -type l -print",
+          "requiredGroups": [["find"], ["-type l"]]
+        },
+        {
+          "id": "search-files-over-100mb",
+          "request": "# find files larger than 100 megabytes",
+          "reference": "find . -type f -size +100M -print",
+          "requiredGroups": [["find"], ["-type f"], ["100"]]
+        }
+      ]
+    },
+    {
+      "id": "text-processing",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "data-tools",
+      "projectMarkers": ["node"],
+      "cases": [
+        {
+          "id": "text-replace-api-linux",
+          "request": "# use linux sed to replace http://localhost:3000 with https://api.example.com in .env",
+          "reference": "sed -i 's|http://localhost:3000|https://api.example.com|g' .env",
+          "requiredGroups": [["sed"], ["localhost:3000"], ["api.example.com"], [".env"]]
+        },
+        {
+          "id": "text-replace-api-mac",
+          "request": "# use mac sed to replace http://localhost:3000 with https://api.example.com in .env",
+          "reference": "sed -i '' 's|http://localhost:3000|https://api.example.com|g' .env",
+          "shell": "zsh",
+          "platform": "macos",
+          "requiredGroups": [["sed"], ["-i ''", "-i \"\""], ["localhost:3000"], ["api.example.com"]]
+        },
+        {
+          "id": "text-remove-blank-lines",
+          "request": "# remove blank lines from input.txt into output.txt",
+          "reference": "sed '/^[[:space:]]*$/d' input.txt > output.txt",
+          "requiredGroups": [["sed", "awk", "grep"], ["input.txt"], ["output.txt"]]
+        },
+        {
+          "id": "text-lines-twenty-forty",
+          "request": "# print lines 20 through 40 of app log",
+          "reference": "sed -n '20,40p' app.log",
+          "requiredGroups": [["sed", "awk"], ["20"], ["40"], ["app.log"]]
+        },
+        {
+          "id": "text-sum-csv-fourth-column",
+          "request": "# sum the fourth column of sales.csv excluding the header",
+          "reference": "awk -F, 'NR > 1 { total += $4 } END { print total }' sales.csv",
+          "requiredGroups": [["awk"], ["$4"], ["sales.csv"]]
+        },
+        {
+          "id": "text-unique-emails",
+          "request": "# print unique sorted email addresses from column 3 of users.csv, excluding the header",
+          "reference": "cut -d, -f3 users.csv | tail -n +2 | sort -u",
+          "requiredGroups": [["cut", "awk"], ["users.csv"], ["sort"], ["-u", "uniq"]]
+        },
+        {
+          "id": "text-pretty-json",
+          "request": "# pretty print package json",
+          "reference": "jq . package.json",
+          "requiredGroups": [["jq", "json.tool"], ["package.json"]]
+        },
+        {
+          "id": "text-enabled-user-emails",
+          "request": "# print enabled user emails from users json",
+          "reference": "jq -r '.users[] | select(.enabled) | .email' users.json",
+          "requiredGroups": [["jq"], ["enabled"], ["email"], ["users.json"]]
+        },
+        {
+          "id": "text-set-yaml-image-tag",
+          "request": "# use yq to set .image.tag to 1.5.0 in deployment.yaml",
+          "reference": "yq -i '.image.tag = \"1.5.0\"' deployment.yaml",
+          "projectMarkers": ["docker"],
+          "requiredGroups": [["yq"], ["image.tag"], ["1.5.0"], ["deployment.yaml"]]
+        },
+        {
+          "id": "text-json-users-tsv",
+          "request": "# convert users json to id and email tsv",
+          "reference": "jq -r '.users[] | [.id, .email] | @tsv' users.json",
+          "requiredGroups": [["jq"], ["id"], ["email"], ["tsv"], ["users.json"]]
+        }
+      ]
+    },
+    {
+      "id": "git-basics",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "git-project",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "git-status-short",
+          "request": "# show concise git status",
+          "reference": "git status --short",
+          "requiredGroups": [["git"], ["status"], ["--short", "-s"]]
+        },
+        {
+          "id": "git-diff-unstaged",
+          "request": "# show unstaged changes",
+          "reference": "git diff",
+          "requiredGroups": [["git"], ["diff"]]
+        },
+        {
+          "id": "git-diff-staged",
+          "request": "# show staged changes",
+          "reference": "git diff --cached",
+          "requiredGroups": [["git"], ["diff"], ["--cached", "--staged"]]
+        },
+        {
+          "id": "git-log-ten",
+          "request": "# show the last ten commits as one line each",
+          "reference": "git log --oneline -10",
+          "requiredGroups": [["git"], ["log"], ["oneline"], ["10"]]
+        },
+        {
+          "id": "git-list-branches-all",
+          "request": "# list local and remote branches",
+          "reference": "git branch -a",
+          "requiredGroups": [["git"], ["branch"], ["-a", "--all"]]
+        },
+        {
+          "id": "git-switch-master",
+          "request": "# switch to master",
+          "reference": "git switch master",
+          "requiredGroups": [["git"], ["switch", "checkout"], ["master"]]
+        },
+        {
+          "id": "git-create-feature-cache",
+          "request": "# create and switch to feature cache",
+          "reference": "git switch -c feature/cache",
+          "requiredGroups": [["git"], ["switch", "checkout"], ["-c", "-b"], ["feature/cache"]]
+        },
+        {
+          "id": "git-stage-all",
+          "request": "# stage all current changes",
+          "reference": "git add -A",
+          "requiredGroups": [["git"], ["add"], ["-A", "--all", "."]]
+        },
+        {
+          "id": "git-commit-add-cache",
+          "request": "# commit staged changes with message add cache",
+          "reference": "git commit -m 'Add cache'",
+          "requiredGroups": [["git"], ["commit"], ["-m"], ["Add cache"]]
+        },
+        {
+          "id": "git-push-upstream",
+          "request": "# push the current branch and set upstream",
+          "reference": "git push -u origin HEAD",
+          "requiredGroups": [["git"], ["push"], ["-u", "--set-upstream"], ["origin"], ["HEAD", "branch --show-current"]]
+        }
+      ]
+    },
+    {
+      "id": "git-advanced",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "multi-repo",
+      "projectMarkers": ["git"],
+      "cases": [
+        {
+          "id": "git-latest-changed-files",
+          "request": "# show files changed in the latest commit",
+          "reference": "git show --name-only --format='' HEAD",
+          "requiredGroups": [["git"], ["show"], ["name-only"], ["HEAD"]]
+        },
+        {
+          "id": "git-restore-application-yaml",
+          "request": "# restore application yaml from HEAD",
+          "reference": "git restore --source=HEAD -- application.yaml",
+          "requiredGroups": [["git"], ["restore", "checkout", "show"], ["HEAD"], ["application.yaml"]],
+          "validator": "git-restore-file-from-head"
+        },
+        {
+          "id": "git-stash-untracked",
+          "request": "# stash tracked and untracked changes",
+          "reference": "git stash push --include-untracked -m 'temporary work'",
+          "requiredGroups": [["git"], ["stash"], ["include-untracked", "-u"]]
+        },
+        {
+          "id": "git-stash-pop",
+          "request": "# restore the latest stash",
+          "reference": "git stash pop",
+          "requiredGroups": [["git"], ["stash"], ["pop", "apply"]]
+        },
+        {
+          "id": "git-rebase-main",
+          "request": "# rebase the current branch onto main",
+          "reference": "git rebase main",
+          "requiredGroups": [["git"], ["rebase"], ["main"]]
+        },
+        {
+          "id": "git-cherry-pick-commit",
+          "request": "# cherry pick commit abc1234",
+          "reference": "git cherry-pick abc1234",
+          "requiredGroups": [["git"], ["cherry-pick"], ["abc1234"]]
+        },
+        {
+          "id": "git-create-worktree",
+          "request": "# create ../feature-cache as a worktree for branch feature/cache",
+          "reference": "git worktree add ../feature-cache feature/cache",
+          "requiredGroups": [["git"], ["worktree"], ["add"], ["feature-cache"], ["feature/cache"]]
+        },
+        {
+          "id": "git-update-submodules",
+          "request": "# initialize and update all git submodules",
+          "reference": "git submodule update --init --recursive",
+          "requiredGroups": [["git"], ["submodule"], ["update"], ["--init"], ["--recursive"]]
+        },
+        {
+          "id": "git-delete-merged-branches",
+          "request": "# delete local branches already merged into main",
+          "reference": "git branch --merged main | sed '/^[* ]*main$/d' | xargs -r git branch -d",
+          "platform": "linux",
+          "requiredGroups": [["git"], ["branch"], ["--merged"], ["main"], ["-d"]]
+        },
+        {
+          "id": "git-switch-master-child-repos",
+          "request": "# switch to master all branches in sub dirs",
+          "reference": "for d in */; do [ -e \"$d/.git\" ] && git -C \"$d\" switch master; done",
+          "requiredGroups": [["git"], ["master"], ["switch", "checkout"], [".git", "--show-toplevel"]],
+          "forbiddenFragments": ["rev-parse --git-dir"],
+          "validator": "git-immediate-child-repos-master"
+        }
+      ]
+    },
+    {
+      "id": "gradle",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "gradle-app",
+      "projectMarkers": ["gradle", "git"],
+      "cases": [
+        {
+          "id": "gradle-build",
+          "request": "# run the complete gradle build",
+          "reference": "./gradlew build",
+          "requiredGroups": [["gradlew", "gradle"], ["build"]]
+        },
+        {
+          "id": "gradle-test",
+          "request": "# run gradle tests",
+          "reference": "./gradlew test",
+          "requiredGroups": [["gradlew", "gradle"], ["test"]]
+        },
+        {
+          "id": "gradle-user-service-test",
+          "request": "# run UserServiceTest",
+          "reference": "./gradlew test --tests 'com.example.UserServiceTest'",
+          "requiredGroups": [["gradlew", "gradle"], ["test"], ["UserServiceTest"]]
+        },
+        {
+          "id": "gradle-user-service-method",
+          "request": "# run the createsUser test method",
+          "reference": "./gradlew test --tests 'com.example.UserServiceTest.createsUser'",
+          "requiredGroups": [["gradlew", "gradle"], ["test"], ["createsUser"]]
+        },
+        {
+          "id": "gradle-clean",
+          "request": "# clean gradle outputs",
+          "reference": "./gradlew clean",
+          "requiredGroups": [["gradlew", "gradle"], ["clean"]]
+        },
+        {
+          "id": "gradle-runtime-dependencies",
+          "request": "# show runtime classpath dependencies",
+          "reference": "./gradlew dependencies --configuration runtimeClasspath",
+          "requiredGroups": [["gradlew", "gradle"], ["dependencies"], ["runtimeClasspath"]]
+        },
+        {
+          "id": "gradle-guava-insight",
+          "request": "# explain which version of guava was selected",
+          "reference": "./gradlew dependencyInsight --dependency guava --configuration runtimeClasspath",
+          "requiredGroups": [["gradlew", "gradle"], ["dependencyInsight", "dependencies"], ["guava"]]
+        },
+        {
+          "id": "gradle-boot-run",
+          "request": "# run the spring boot application with gradle",
+          "reference": "./gradlew bootRun",
+          "requiredGroups": [["gradlew", "gradle"], ["bootRun"]]
+        },
+        {
+          "id": "gradle-assemble-app",
+          "request": "# assemble only the app module",
+          "reference": "./gradlew :app:assemble",
+          "requiredGroups": [["gradlew", "gradle"], [":app:assemble"]]
+        },
+        {
+          "id": "gradle-list-projects",
+          "request": "# list gradle projects",
+          "reference": "./gradlew projects",
+          "requiredGroups": [["gradlew", "gradle"], ["projects"]]
+        }
+      ]
+    },
+    {
+      "id": "maven",
+      "shell": "bash",
+      "platform": "linux",
+      "projectName": "maven-app",
+      "projectMarkers": ["maven", "git"],
+      "cases": [
+        {
+          "id": "maven-test",
+          "request": "# run maven tests",
+          "reference": "mvn test",
+          "requiredGroups": [["mvn"], ["test"]]
+        },
+        {
+          "id": "maven-package-skip-tests",
+          "request": "# package the application without tests",
+          "reference": "mvn package -DskipTests",
+          "requiredGroups": [["mvn"], ["package"], ["skipTests"]]
+        },
+        {
+          "id": "maven-user-service-test",
+          "request": "# run UserServiceTest with maven",
+          "reference": "mvn -Dtest=UserServiceTest test",
+          "requiredGroups": [["mvn"], ["UserServiceTest"], ["test"]]
+        },
+        {
+          "id": "maven-user-service-method",
+          "request": "# run the createsUser test method with maven",
+          "reference": "mvn -Dtest=UserServiceTest#createsUser test",
+          "requiredGroups": [["mvn"], ["createsUser"], ["test"]]
+        },
+        {
+          "id": "maven-dependency-tree",
+          "request": "# show the maven dependency tree",
+          "reference": "mvn dependency:tree",
+          "requiredGroups": [["mvn"], ["dependency:tree"]]
+        },
+        {
+          "id": "maven-dependency-updates",
+          "request": "# show available maven dependency updates",
+          "reference": "mvn versions:display-dependency-updates",
+          "requiredGroups": [["mvn"], ["versions:display-dependency-updates"]]
+        },
+        {
+          "id": "maven-spring-boot-run",
+          "request": "# run the spring boot application with maven",
+          "reference": "mvn spring-boot:run",
+          "requiredGroups": [["mvn"], ["spring-boot:run"]]
+        },
+        {
+          "id": "maven-effective-pom",
+          "request": "# write the effective pom to effective-pom.xml",
+          "reference": "mvn help:effective-pom -Doutput=effective-pom.xml",
+          "requiredGroups": [["mvn"], ["effective-pom"], ["effective-pom.xml"]]
+        },
+        {
+          "id": "maven-offline-verify",
+          "request": "# verify the maven project offline",
+          "reference": "mvn -o verify",
+          "requiredGroups": [["mvn"], ["-o", "--offline"], ["verify"]]
+        },
+        {
+          "id": "maven-service-api-test",
+          "request": "# test the service-api maven module and required modules",
+          "reference": "mvn -pl service-api -am test",
+          "requiredGroups": [["mvn"], ["service-api"], ["-am"], ["test"]]
+        }
+      ]
+    },
+    {
+      "id": "npm",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "node-app",
+      "projectMarkers": ["node", "git"],
+      "cases": [
+        {
+          "id": "npm-ci",
+          "request": "# install node dependencies from the lockfile",
+          "reference": "npm ci",
+          "requiredGroups": [["npm"], ["ci"]]
+        },
+        {
+          "id": "npm-install-lodash",
+          "request": "# install lodash",
+          "reference": "npm install lodash",
+          "requiredGroups": [["npm"], ["install", "i"], ["lodash"]]
+        },
+        {
+          "id": "npm-install-typescript-dev",
+          "request": "# install typescript as a development dependency",
+          "reference": "npm install --save-dev typescript",
+          "requiredGroups": [["npm"], ["install", "i"], ["typescript"], ["save-dev", "-D"]]
+        },
+        {
+          "id": "npm-run-dev",
+          "request": "# start the npm development server",
+          "reference": "npm run dev",
+          "requiredGroups": [["npm"], ["run"], ["dev"]]
+        },
+        {
+          "id": "npm-test",
+          "request": "# run npm tests",
+          "reference": "npm test",
+          "requiredGroups": [["npm"], ["test"]]
+        },
+        {
+          "id": "npm-cache-test-file",
+          "request": "# run only src/cache.test.ts with npm test",
+          "reference": "npm test -- src/cache.test.ts",
+          "requiredGroups": [["npm"], ["test"], ["src/cache.test.ts"]]
+        },
+        {
+          "id": "npm-build",
+          "request": "# build the node project",
+          "reference": "npm run build",
+          "requiredGroups": [["npm"], ["run"], ["build"]]
+        },
+        {
+          "id": "npm-lint",
+          "request": "# run the npm lint script",
+          "reference": "npm run lint",
+          "requiredGroups": [["npm"], ["run"], ["lint"]]
+        },
+        {
+          "id": "npm-audit-production",
+          "request": "# audit npm production dependencies",
+          "reference": "npm audit --omit=dev",
+          "requiredGroups": [["npm"], ["audit"], ["omit=dev", "--production"]]
+        },
+        {
+          "id": "npm-pack-dry-run",
+          "request": "# preview the contents of the npm package",
+          "reference": "npm pack --dry-run",
+          "requiredGroups": [["npm"], ["pack"], ["dry-run"]]
+        }
+      ]
+    },
+    {
+      "id": "frontend-tools",
+      "shell": "zsh",
+      "platform": "macos",
+      "projectName": "frontend-monorepo",
+      "projectMarkers": ["node", "pnpm", "git"],
+      "cases": [
+        {
+          "id": "pnpm-install-frozen",
+          "request": "# install pnpm dependencies without changing the lockfile",
+          "reference": "pnpm install --frozen-lockfile",
+          "requiredGroups": [["pnpm"], ["install"], ["frozen-lockfile"]]
+        },
+        {
+          "id": "pnpm-add-typescript",
+          "request": "# add typescript as a pnpm dev dependency",
+          "reference": "pnpm add -D typescript",
+          "requiredGroups": [["pnpm"], ["add"], ["typescript"], ["-D", "--save-dev"]]
+        },
+        {
+          "id": "pnpm-web-tests",
+          "request": "# run tests in the web pnpm workspace",
+          "reference": "pnpm --filter web test",
+          "requiredGroups": [["pnpm"], ["filter"], ["web"], ["test"]]
+        },
+        {
+          "id": "yarn-install-immutable",
+          "request": "# install yarn dependencies without changing the lockfile",
+          "reference": "yarn install --immutable",
+          "projectMarkers": ["node", "yarn"],
+          "requiredGroups": [["yarn"], ["install"], ["immutable", "frozen-lockfile"]]
+        },
+        {
+          "id": "yarn-web-build",
+          "request": "# build the web yarn workspace",
+          "reference": "yarn workspace web build",
+          "projectMarkers": ["node", "yarn"],
+          "requiredGroups": [["yarn"], ["workspace"], ["web"], ["build"]]
+        },
+        {
+          "id": "bun-install",
+          "request": "# install dependencies with bun",
+          "reference": "bun install",
+          "projectMarkers": ["node", "bun"],
+          "requiredGroups": [["bun"], ["install"]]
+        },
+        {
+          "id": "bun-test",
+          "request": "# run bun tests",
+          "reference": "bun test",
+          "projectMarkers": ["node", "bun"],
+          "requiredGroups": [["bun"], ["test"]]
+        },
+        {
+          "id": "typescript-no-emit",
+          "request": "# typecheck typescript without emitting files",
+          "reference": "npx tsc --noEmit",
+          "requiredGroups": [["tsc"], ["noEmit", "no-emit"]]
+        },
+        {
+          "id": "eslint-src-no-warnings",
+          "request": "# lint the src directory with no warnings allowed",
+          "reference": "npx eslint src --max-warnings=0",
+          "requiredGroups": [["eslint"], ["src"], ["max-warnings=0"]]
+        },
+        {
+          "id": "prettier-write-src",
+          "request": "# format the src directory with prettier",
+          "reference": "npx prettier src --write",
+          "requiredGroups": [["prettier"], ["src"], ["write"]]
+        }
+      ]
+    }
+  ]
+}

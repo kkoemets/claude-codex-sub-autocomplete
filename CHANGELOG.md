@@ -2,6 +2,14 @@
 
 All notable user-facing changes are documented here.
 
+## 0.6.1 — Early Access
+
+- Uses a lean, structured terminal prompt shared by Claude and Codex.
+- Added reliable immediate-child scope handling for Git repositories and other multi-directory commands.
+- Added shell, platform, direction, action, and operand coverage to the terminal quality gates.
+- Added a provider-neutral 50-case live quality gate and a 200-case deterministic terminal corpus.
+- Kept installed-IDE automation opt-in so the headless release gate does not take over the desktop.
+
 ## 0.6.0 — Early Access
 
 - Added explicit `# request` + Tab shell-command generation in IntelliJ's classic and Reworked terminals.

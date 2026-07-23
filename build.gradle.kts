@@ -155,6 +155,147 @@ tasks.register<JavaExec>("autocompleteDeterministicEval") {
   )
 }
 
+tasks.register<JavaExec>("terminalDeterministicEval") {
+  group = "verification"
+  description = "Runs the required offline 200-case positive terminal command evaluation"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.DeterministicTerminalEval")
+  systemProperty(
+    "terminal.eval.outputDir",
+    layout.buildDirectory.dir("reports/terminal-deterministic").get().asFile.absolutePath,
+  )
+}
+
+tasks.register<JavaExec>("subscriptionTerminalEvals") {
+  group = "verification"
+  description = "Runs live terminal command quality and latency evals using configured subscriptions"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
+  args(providers.gradleProperty("terminalEvalProviders").orElse("codex,claude").get())
+  systemProperty(
+    "terminal.eval.outputDir",
+    layout.buildDirectory.dir("reports/subscription-terminal-evals").get().asFile.absolutePath,
+  )
+  systemProperty("terminal.eval.profile", providers.gradleProperty("terminalEvalProfile").orElse("sample").get())
+  systemProperty("terminal.eval.cases", providers.gradleProperty("terminalEvalCases").orElse("").get())
+  systemProperty(
+    "terminal.eval.repetitions",
+    providers.gradleProperty("terminalEvalRepetitions").orElse("1").get(),
+  )
+  systemProperty("terminal.eval.seed", providers.gradleProperty("terminalEvalSeed").orElse("20260722").get())
+  systemProperty(
+    "terminal.eval.claudeModel",
+    providers.gradleProperty("terminalEvalClaudeModel").orElse("haiku").get(),
+  )
+  systemProperty(
+    "terminal.eval.codexModel",
+    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+  )
+  systemProperty(
+    "terminal.eval.codexReasoningEffort",
+    providers.gradleProperty("terminalEvalCodexReasoningEffort").orElse("low").get(),
+  )
+  systemProperty(
+    "terminal.eval.timeoutSeconds",
+    providers.gradleProperty("terminalEvalTimeoutSeconds").orElse("30").get(),
+  )
+  systemProperty(
+    "terminal.eval.printCandidates",
+    providers.gradleProperty("terminalEvalPrintCandidates").orElse("false").get(),
+  )
+}
+
+tasks.register<JavaExec>("terminalLiveEval") {
+  group = "verification"
+  description = "Runs the canonical provider-neutral 50-case terminal suite for Claude Haiku and Codex 5.4 none"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
+  args(providers.gradleProperty("terminalLiveEvalProviders").orElse("claude,codex").get())
+  systemProperty(
+    "terminal.eval.outputDir",
+    layout.buildDirectory.dir("reports/terminal-live-evals").get().asFile.absolutePath,
+  )
+  systemProperty("terminal.eval.profile", "quality")
+  systemProperty("terminal.eval.official", "true")
+  systemProperty("terminal.eval.repetitions", "0")
+  systemProperty("terminal.eval.seed", "20260722")
+  systemProperty("terminal.eval.claudeModel", "haiku")
+  systemProperty("terminal.eval.codexModel", "gpt-5.4")
+  systemProperty("terminal.eval.codexReasoningEffort", "none")
+  systemProperty(
+    "terminal.eval.timeoutSeconds",
+    providers.gradleProperty("terminalEvalTimeoutSeconds").orElse("30").get(),
+  )
+  systemProperty(
+    "terminal.eval.printCandidates",
+    providers.gradleProperty("terminalEvalPrintCandidates").orElse("false").get(),
+  )
+}
+
+tasks.register<JavaExec>("terminalSampleEval") {
+  group = "verification"
+  description = "Runs one advisory terminal case per category on the selected Claude and Codex defaults"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
+  args(providers.gradleProperty("terminalEvalProviders").orElse("codex,claude").get())
+  systemProperty(
+    "terminal.eval.outputDir",
+    layout.buildDirectory.dir("reports/terminal-sample-evals").get().asFile.absolutePath,
+  )
+  systemProperty("terminal.eval.profile", "sample")
+  systemProperty("terminal.eval.repetitions", "0")
+  systemProperty("terminal.eval.seed", providers.gradleProperty("terminalEvalSeed").orElse("20260722").get())
+  systemProperty(
+    "terminal.eval.claudeModel",
+    providers.gradleProperty("terminalEvalClaudeModel").orElse("haiku").get(),
+  )
+  systemProperty(
+    "terminal.eval.codexModel",
+    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+  )
+  systemProperty(
+    "terminal.eval.codexReasoningEffort",
+    providers.gradleProperty("terminalEvalCodexReasoningEffort").orElse("low").get(),
+  )
+  systemProperty(
+    "terminal.eval.timeoutSeconds",
+    providers.gradleProperty("terminalEvalTimeoutSeconds").orElse("30").get(),
+  )
+}
+
+tasks.register<JavaExec>("terminalSupportedModelEvals") {
+  group = "verification"
+  description = "Runs the credentialed critical terminal suite across all exposed Claude and Codex profiles"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SupportedTerminalModelEval")
+  systemProperty(
+    "terminal.eval.outputDir",
+    layout.buildDirectory.dir("reports/terminal-supported-model-evals").get().asFile.absolutePath,
+  )
+  systemProperty(
+    "terminal.eval.profile",
+    providers.gradleProperty("terminalModelEvalProfile").orElse("quality").get(),
+  )
+  systemProperty(
+    "terminal.eval.cases",
+    providers.gradleProperty("terminalModelEvalCases").orElse("").get(),
+  )
+  systemProperty(
+    "terminal.eval.repetitions",
+    providers.gradleProperty("terminalModelEvalRepetitions").orElse("0").get(),
+  )
+  systemProperty("terminal.eval.seed", providers.gradleProperty("terminalEvalSeed").orElse("20260722").get())
+  systemProperty(
+    "terminal.eval.timeoutSeconds",
+    providers.gradleProperty("terminalEvalTimeoutSeconds").orElse("30").get(),
+  )
+}
+
 tasks.register<JavaExec>("autocompleteProviderModelSafetyGate") {
   group = "verification"
   description = "Rejects provider prose across every exposed Claude/Codex model and reasoning combination"
@@ -322,16 +463,25 @@ tasks.register("verifyMarketplaceMetadata") {
 
 tasks.register("autocompleteReleaseGate") {
   group = "verification"
-  description = "Runs unit, deterministic, installed-IDE, plugin, verifier, and bundle gates"
+  description = "Runs the headless unit, deterministic, plugin, verifier, and bundle gates"
   dependsOn(
     tasks.test,
     tasks.named("autocompleteDeterministicEval"),
+    tasks.named("terminalDeterministicEval"),
     tasks.named("autocompleteProviderModelSafetyGate"),
-    tasks.named("autocompleteInstalledIdeTest"),
     tasks.named("buildPlugin"),
     tasks.named("verifyPlugin"),
     tasks.named("verifyPluginBundleSize"),
     tasks.named("verifyMarketplaceMetadata"),
+  )
+}
+
+tasks.register("autocompleteInteractiveReleaseGate") {
+  group = "verification"
+  description = "Runs the headless release gate and then launches IntelliJ for the opt-in installed-IDE test"
+  dependsOn(
+    tasks.named("autocompleteReleaseGate"),
+    tasks.named("autocompleteInstalledIdeTest"),
   )
 }
 

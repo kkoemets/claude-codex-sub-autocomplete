@@ -23,13 +23,27 @@ Run the fast checks with:
 ./gradlew test autocompleteDeterministicEval buildPlugin
 ```
 
-Run the complete pre-release suite with:
+Run the complete headless pre-release suite with:
 
 ```bash
 ./gradlew clean autocompleteReleaseGate --no-daemon
 ```
 
-The installed-IDE test launches a temporary IntelliJ instance and can use several gigabytes of memory. Let it finish before starting another release-gate run.
+If authenticated Claude Code and Codex subscriptions are available, run the
+shared 50-case network-backed terminal gate separately:
+
+```bash
+./gradlew terminalLiveEval --no-daemon
+```
+
+It evaluates both providers against identical cases and shared scoring rules;
+provider-specific cases or scoring exceptions are not accepted.
+
+The installed-IDE test is deliberately opt-in because it launches and controls a temporary IntelliJ window:
+
+```bash
+./gradlew autocompleteInstalledIdeTest --no-daemon
+```
 
 ## Pull requests
 
