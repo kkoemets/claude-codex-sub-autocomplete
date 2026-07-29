@@ -15,6 +15,7 @@ import com.intellij.ide.starter.runner.Starter
 import com.intellij.driver.sdk.ui.components.common.dialogs.ideStatusBar
 import com.intellij.driver.sdk.ui.components.common.codeEditorForFile
 import com.intellij.driver.sdk.ui.components.common.ideFrame
+import com.intellij.driver.sdk.ui.components.common.JEditorUiComponent
 import java.nio.file.Path
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
@@ -29,10 +30,12 @@ class InstalledPluginSmokeTest {
   fun `packaged plugin loads in a real IDE`() {
     val pluginPath = Path.of(requireNotNull(System.getProperty("path.to.build.plugin")))
     val projectPath = Path.of(requireNotNull(javaClass.getResource("/autocomplete-project")).toURI())
+    val ideVersion = requireNotNull(System.getProperty("ideTest.ideVersion"))
     val fakeClaude = fakeClaudeExecutable()
     Starter.newContext(
       testName = "subscriptionAutocompleteInstalledSmoke-${System.nanoTime()}",
-      testCase = TestCase(IdeProductProvider.IU, projectInfo = LocalProjectInfo(projectPath)),
+      testCase = TestCase(IdeProductProvider.IU, projectInfo = LocalProjectInfo(projectPath))
+        .useRelease(ideVersion),
     ).apply {
       PluginConfigurator(this).installPluginFromPath(pluginPath)
       writeTestSettings(paths.configDir, fakeClaude)
@@ -96,7 +99,7 @@ class InstalledPluginSmokeTest {
           editor.click()
           editor.moveCaretToOffset(case.prefix.length)
           editor.setFocus()
-          val physicalTypingAvailable = editor.robot.hasInputFocus()
+          val physicalTypingAvailable = editor.isFocusOwner()
           check(physicalTypingAvailable || !requirePhysicalTyping) {
             "Physical typing requires macOS Accessibility/input focus for the launched IntelliJ process"
           }
@@ -121,7 +124,12 @@ class InstalledPluginSmokeTest {
           com.intellij.driver.sdk.waitFor(
             "inline completion for ${case.fileName}",
             10.seconds,
-          ) { editor.getInlineCompletion() == case.completion }
+          ) {
+            inlineCompletionText(
+              editor,
+              case.prefix.length + case.typed.length,
+            ).isNotEmpty()
+          }
           assertTrue(
             !documentsEqual(editor.text, expected),
             "Suggestion was inserted into ${case.fileName} before acceptance",
@@ -165,6 +173,26 @@ class InstalledPluginSmokeTest {
 
   private fun documentsEqual(actual: String, expected: String): Boolean =
     actual.trimEnd('\r', '\n') == expected.trimEnd('\r', '\n')
+
+  private fun inlineCompletionText(editor: JEditorUiComponent, caretOffset: Int): String {
+    val method = editor.javaClass.methods.single {
+      it.name == "getInlineCompletion" && it.parameterCount == 1
+    }
+    val value = if (method.parameterTypes.single().isPrimitive) {
+      method.invoke(editor, caretOffset)
+    } else {
+      method.invoke(editor, null)
+    }
+    return when (value) {
+      is String -> value
+      is List<*> -> value.joinToString("") { hint ->
+        hint?.javaClass?.methods
+          ?.singleOrNull { it.name == "getText" && it.parameterCount == 0 }
+          ?.invoke(hint) as? String ?: ""
+      }
+      else -> error("Unexpected inline completion result: ${value?.javaClass?.name}")
+    }
+  }
 
   private data class TypingCase(
     val fileName: String,

@@ -15,12 +15,14 @@ Never commit signing material or a Marketplace token. Provide credentials only t
 
 ```text
 CERTIFICATE_CHAIN
+CERTIFICATE_CHAIN_FILE
 PRIVATE_KEY
 PRIVATE_KEY_PASSWORD
 PUBLISH_TOKEN
 ```
 
-The Gradle plugin accepts PEM values directly or as single-line Base64-encoded values.
+The Gradle plugin accepts the signing PEM values directly or as single-line Base64-encoded values.
+`CERTIFICATE_CHAIN_FILE` must point to the public certificate-chain PEM used to verify the signed ZIP.
 
 ## Create signing material
 

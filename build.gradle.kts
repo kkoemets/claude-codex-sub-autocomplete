@@ -1,4 +1,6 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginSignatureTask
 
 plugins {
   id("java")
@@ -50,7 +52,7 @@ intellijPlatform {
     name = providers.gradleProperty("pluginName").get()
     version = providers.gradleProperty("pluginVersion").get()
     ideaVersion {
-      sinceBuild = "261"
+      sinceBuild = "253"
       untilBuild = provider { null }
     }
   }
@@ -69,6 +71,7 @@ intellijPlatform {
 
   pluginVerification {
     ides {
+      create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3")
       recommended()
     }
   }
@@ -98,6 +101,10 @@ intellijPlatformTesting.testIdeUi.register("autocompleteInstalledIdeTest") {
     systemProperty(
       "ideTest.requirePhysicalTyping",
       providers.gradleProperty("requirePhysicalTyping").orElse("false").get(),
+    )
+    systemProperty(
+      "ideTest.ideVersion",
+      providers.gradleProperty("platformVersion").get(),
     )
   }
 }
@@ -491,6 +498,20 @@ tasks.named("signPlugin") {
       check(!System.getenv(variable).isNullOrBlank()) {
         "$variable is required for a signed Marketplace artifact"
       }
+    }
+  }
+}
+
+tasks.named<VerifyPluginSignatureTask>("verifyPluginSignature") {
+  dependsOn(tasks.named("signPlugin"))
+  certificateChain.unset()
+  certificateChain.unsetConvention()
+  certificateChainFile.set(
+    layout.file(providers.environmentVariable("CERTIFICATE_CHAIN_FILE").map { file(it) }),
+  )
+  doFirst {
+    check(!System.getenv("CERTIFICATE_CHAIN_FILE").isNullOrBlank()) {
+      "CERTIFICATE_CHAIN_FILE is required to verify the signed Marketplace artifact"
     }
   }
 }

@@ -14,7 +14,7 @@ Thanks for helping improve Claude/Codex Sub Autocomplete.
 Requirements:
 
 - JDK 21
-- IntelliJ IDEA 2026.1 or newer
+- IntelliJ IDEA 2025.3 or newer
 - the repository's Gradle wrapper
 
 Run the fast checks with:

@@ -2,6 +2,11 @@
 
 All notable user-facing changes are documented here.
 
+## 0.6.2 — Early Access
+
+- Expanded compatibility to IntelliJ IDEA 2025.3 and newer.
+- Added IntelliJ IDEA 2025.3 to the release-blocking Plugin Verifier matrix.
+
 ## 0.6.1 — Early Access
 
 - Uses a lean, structured terminal prompt shared by Claude and Codex.

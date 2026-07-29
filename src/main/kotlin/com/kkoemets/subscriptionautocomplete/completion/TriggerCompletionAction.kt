@@ -14,15 +14,19 @@ import com.intellij.openapi.project.DumbAware
 class TriggerCompletionAction : AnAction(), DumbAware {
   override fun actionPerformed(event: AnActionEvent) {
     if (!AutocompleteSettings.getInstance().state.enabled) return
-    if (event.getData(CommonDataKeys.EDITOR) == null) return
+    val project = event.project ?: return
+    val editor = event.getData(CommonDataKeys.EDITOR)
+      ?: FileEditorManager.getInstance(project).selectedTextEditor
+      ?: return
     val actionManager = ActionManager.getInstance()
     val action = actionManager.getAction(IdeActions.ACTION_CALL_INLINE_COMPLETION) ?: return
-    actionManager.tryToExecute(action, event.inputEvent, null, event.place, true)
+    actionManager.tryToExecute(action, event.inputEvent, editor.contentComponent, event.place, true)
   }
 
   override fun update(event: AnActionEvent) {
-    event.presentation.isEnabled = event.getData(CommonDataKeys.EDITOR) != null &&
-      AutocompleteSettings.getInstance().state.enabled
+    val editorAvailable = event.getData(CommonDataKeys.EDITOR) != null ||
+      event.project?.let { FileEditorManager.getInstance(it).selectedTextEditor } != null
+    event.presentation.isEnabled = editorAvailable && AutocompleteSettings.getInstance().state.enabled
   }
 
   override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT

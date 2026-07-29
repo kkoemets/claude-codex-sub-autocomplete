@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/kkoemets/claude-codex-sub-autocomplete?display_name=tag&amp;sort=semver"></a>
-  <img alt="IntelliJ IDEA 2026.1 or newer" src="https://img.shields.io/badge/IntelliJ_IDEA-2026.1%2B-5757D9">
+  <img alt="IntelliJ IDEA 2025.3 or newer" src="https://img.shields.io/badge/IntelliJ_IDEA-2025.3%2B-5757D9">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2F855A"></a>
   <img alt="No telemetry" src="https://img.shields.io/badge/telemetry-none-4A5568">
 </p>
@@ -50,7 +50,7 @@ Claude Code and Codex are excellent at understanding code, but their agent inter
 
 ## Requirements
 
-- IntelliJ IDEA Community or Ultimate 2026.1 or newer.
+- IntelliJ IDEA Community or Ultimate 2025.3 or newer.
 - Java 21, included with current IntelliJ IDEA releases.
 - Claude Code or Codex CLI installed and authenticated through a supported subscription.
 

@@ -2,7 +2,7 @@
 
 ## Before asking for help
 
-1. Confirm you are using IntelliJ IDEA 2026.1 or newer and the latest plugin release.
+1. Confirm you are using IntelliJ IDEA 2025.3 or newer and the latest plugin release.
 2. Run `claude auth status` or `codex login status` in a terminal.
 3. Open the plugin's status-bar menu and run **Connection Tests and Diagnostics**.
 4. Retry with manual completion using `Alt+\`.
