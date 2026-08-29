@@ -13,6 +13,27 @@ import kotlin.test.assertTrue
 
 class TerminalCommandSupportTest {
   @Test
+  fun `terminal working directory supports current and replacement IDE APIs`() {
+    assertEquals(
+      "/workspace/new-api",
+      TerminalCompletionService.TerminalWorkingDirectory.resolve(
+        TerminalWithWorkingDirectoryFlow(FakeValueFlow("/workspace/new-api")),
+      ),
+    )
+    assertEquals(
+      "/workspace/legacy-api",
+      TerminalCompletionService.TerminalWorkingDirectory.resolve(
+        TerminalWithCurrentDirectory("/workspace/legacy-api"),
+      ),
+    )
+    assertNull(
+      TerminalCompletionService.TerminalWorkingDirectory.resolve(
+        TerminalWithCurrentDirectory(""),
+      ),
+    )
+  }
+
+  @Test
   fun `trigger accepts only a bounded one-line request at command start`() {
     assertEquals("list TypeScript files", TerminalCommandTrigger.extract("# list TypeScript files"))
     assertEquals("show git status", TerminalCommandTrigger.extract("   #show git status"))
@@ -181,5 +202,18 @@ class TerminalCommandSupportTest {
     val oversized = "x".repeat(CompletionOutputEnvelope.maxCharacters(16) + 1)
 
     assertEquals("", TerminalCommandSanitizer.sanitize(oversized, 16))
+  }
+
+  private class FakeValueFlow(private val value: Any?) {
+    fun getValue(): Any? = value
+  }
+
+  private class TerminalWithWorkingDirectoryFlow(private val flow: FakeValueFlow) {
+    fun getWorkingDirectoryFlow(): FakeValueFlow = flow
+    fun getCurrentDirectory(): String = "/workspace/fallback"
+  }
+
+  private class TerminalWithCurrentDirectory(private val directory: String) {
+    fun getCurrentDirectory(): String = directory
   }
 }

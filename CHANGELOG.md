@@ -2,6 +2,13 @@
 
 All notable user-facing changes are documented here.
 
+## 0.6.3 — Early Access
+
+- Added verified compatibility with IntelliJ IDEA 2026.2, including the current 2026.2.1 release.
+- Kept installation open-ended from IntelliJ IDEA 2025.3 onward while compiling against the oldest supported SDK to prevent accidental use of newer-only APIs.
+- Expanded the release-blocking compatibility policy to cover the oldest supported IDE, current stable IDE, and JetBrains-recommended forward builds.
+- Replaced a deprecated 2026.2 terminal working-directory call with a cross-version adapter that supports both the old and replacement APIs.
+
 ## 0.6.2 — Early Access
 
 - Expanded compatibility to IntelliJ IDEA 2025.3 and newer.

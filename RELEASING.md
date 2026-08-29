@@ -30,7 +30,7 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
 
 ## Prepare the release
 
-1. Update `pluginVersion`, `CHANGELOG.md`, and the `<change-notes>` section in `plugin.xml` together.
+1. Update `pluginVersion`, `currentPlatformVersion`, `CHANGELOG.md`, and the `<change-notes>` section in `plugin.xml` together. `currentPlatformVersion` must name the current stable IntelliJ release; keep `platformVersion`, `minimumPlatformVersion`, and `pluginSinceBuild` aligned with the oldest supported release.
 2. Confirm the working tree contains no internal notes, credentials, generated reports, or unrelated changes.
 3. Run the full headless contributor-safe gate:
 

@@ -217,11 +217,33 @@ class TerminalCompletionService(
     val context = TerminalProjectContextCollector.collect(
       description = description,
       shellCommand = startupOptions?.shellCommand.orEmpty(),
-      currentDirectory = terminal.getCurrentDirectory(),
+      currentDirectory = TerminalWorkingDirectory.resolve(terminal),
       projectName = project.name,
       projectBasePath = project.basePath,
     )
     return TerminalCommandCapture(capturedLine, context.shell, context)
+  }
+
+  /**
+   * IntelliJ 262 replaces TerminalView.getCurrentDirectory() with workingDirectoryFlow.
+   * Resolve both shapes without a binary reference to either method so one artifact can
+   * continue to support the 253 baseline and newer Terminal implementations.
+   */
+  internal object TerminalWorkingDirectory {
+    fun resolve(terminal: Any): String? =
+      invokeNoArgs(terminal, "getWorkingDirectoryFlow")
+        ?.let { invokeNoArgs(it, "getValue") }
+        ?.toString()
+        ?.takeIf(String::isNotBlank)
+        ?: invokeNoArgs(terminal, "getCurrentDirectory")
+          ?.toString()
+          ?.takeIf(String::isNotBlank)
+
+    private fun invokeNoArgs(target: Any, name: String): Any? = runCatching {
+      target.javaClass.methods.firstOrNull { method ->
+        method.name == name && method.parameterCount == 0
+      }?.invoke(target)
+    }.getOrNull()
   }
 
   private fun capture(terminal: TerminalWidget): TerminalCommandCapture? {

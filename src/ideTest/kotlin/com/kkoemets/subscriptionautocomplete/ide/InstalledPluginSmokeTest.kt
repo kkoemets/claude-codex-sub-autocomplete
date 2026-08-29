@@ -1,7 +1,5 @@
 package com.kkoemets.subscriptionautocomplete.ide
 
-import com.intellij.driver.client.service
-import com.intellij.driver.sdk.FileEditorManager
 import com.intellij.driver.sdk.openFile
 import com.intellij.driver.sdk.invokeAction
 import com.intellij.driver.sdk.singleProject
@@ -14,6 +12,7 @@ import com.intellij.ide.starter.project.LocalProjectInfo
 import com.intellij.ide.starter.runner.Starter
 import com.intellij.driver.sdk.ui.components.common.dialogs.ideStatusBar
 import com.intellij.driver.sdk.ui.components.common.codeEditorForFile
+import com.intellij.driver.sdk.ui.components.common.editorTabs
 import com.intellij.driver.sdk.ui.components.common.ideFrame
 import com.intellij.driver.sdk.ui.components.common.JEditorUiComponent
 import java.nio.file.Path
@@ -38,7 +37,7 @@ class InstalledPluginSmokeTest {
         .useRelease(ideVersion),
     ).apply {
       PluginConfigurator(this).installPluginFromPath(pluginPath)
-      writeTestSettings(paths.configDir, fakeClaude)
+      writeTestSettings(paths.configDir, fakeClaude, ideVersion)
     }.runIdeWithDriver().useDriverAndCloseIde {
       waitForIndicators(2.minutes)
       ideFrame {
@@ -54,7 +53,7 @@ class InstalledPluginSmokeTest {
     }
   }
 
-  private fun writeTestSettings(configDirectory: Path, executable: Path) {
+  private fun writeTestSettings(configDirectory: Path, executable: Path, ideVersion: String) {
     val optionsDirectory = configDirectory.resolve("options")
     Files.createDirectories(optionsDirectory)
     Files.writeString(
@@ -77,21 +76,30 @@ class InstalledPluginSmokeTest {
         </application>
       """.trimIndent(),
     )
+    val releaseLine = ideVersion.split('.').take(2).joinToString(".")
+    Files.writeString(
+      optionsDirectory.resolve("other.xml"),
+      """
+        <application>
+          <component name="PropertyService"><![CDATA[{
+            "keyToStringList": {
+              "trial.active.editor.tab.shown.versions": ["IU-$releaseLine"]
+            }
+          }]]></component>
+        </application>
+      """.trimIndent(),
+    )
   }
 
   private fun com.intellij.driver.client.Driver.exerciseInstalledTyping() {
     val project = singleProject()
-    val fileEditorManager = service<FileEditorManager>(project)
     val requirePhysicalTyping = System.getProperty("ideTest.requirePhysicalTyping", "false").toBoolean()
     val repetitions = System.getProperty("ideTest.repetitions", "3").toInt().coerceIn(1, 3)
     repeat(repetitions) {
       typingCases.forEach { case ->
         openFile(case.fileName, project)
-        com.intellij.driver.sdk.waitFor(
-          "selected editor for ${case.fileName}",
-          5.seconds,
-        ) { fileEditorManager.getCurrentFile().getName() == case.fileName }
         ideFrame {
+          editorTabs { clickTab(case.fileName) }
           val editor = codeEditorForFile(case.fileName)
           val beforeTyping = case.prefix + case.suffix
           val expected = case.prefix + case.typed + case.completion + case.suffix

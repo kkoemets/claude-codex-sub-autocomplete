@@ -52,7 +52,7 @@ intellijPlatform {
     name = providers.gradleProperty("pluginName").get()
     version = providers.gradleProperty("pluginVersion").get()
     ideaVersion {
-      sinceBuild = "253"
+      sinceBuild = providers.gradleProperty("pluginSinceBuild").get()
       untilBuild = provider { null }
     }
   }
@@ -71,7 +71,14 @@ intellijPlatform {
 
   pluginVerification {
     ides {
-      create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3")
+      create(
+        IntelliJPlatformType.IntellijIdeaUltimate,
+        providers.gradleProperty("minimumPlatformVersion").get(),
+      )
+      create(
+        IntelliJPlatformType.IntellijIdeaUltimate,
+        providers.gradleProperty("currentPlatformVersion").get(),
+      )
       recommended()
     }
   }
@@ -90,6 +97,8 @@ tasks.test {
 }
 
 intellijPlatformTesting.testIdeUi.register("autocompleteInstalledIdeTest") {
+  type.set(IntelliJPlatformType.IntellijIdeaUltimate)
+  version.set(providers.gradleProperty("currentPlatformVersion"))
   task {
     testClassesDirs = ideTestSourceSet.output.classesDirs
     classpath = ideTestSourceSet.runtimeClasspath
@@ -104,7 +113,7 @@ intellijPlatformTesting.testIdeUi.register("autocompleteInstalledIdeTest") {
     )
     systemProperty(
       "ideTest.ideVersion",
-      providers.gradleProperty("platformVersion").get(),
+      providers.gradleProperty("currentPlatformVersion").get(),
     )
   }
 }
@@ -468,6 +477,34 @@ tasks.register("verifyMarketplaceMetadata") {
   }
 }
 
+tasks.register("verifyCompatibilityPolicy") {
+  group = "verification"
+  description = "Validates the open-ended compatibility range and maintained IDE targets"
+  doLast {
+    val minimumVersion = providers.gradleProperty("minimumPlatformVersion").get()
+    val compileVersion = providers.gradleProperty("platformVersion").get()
+    val currentVersion = providers.gradleProperty("currentPlatformVersion").get()
+    val sinceBuild = providers.gradleProperty("pluginSinceBuild").get()
+    val minimumParts = minimumVersion.split('.')
+    check(minimumParts.size >= 2) { "minimumPlatformVersion must include a release line" }
+    val expectedSinceBuild = minimumParts[0].takeLast(2) + minimumParts[1]
+    check(sinceBuild == expectedSinceBuild) {
+      "pluginSinceBuild $sinceBuild does not match minimumPlatformVersion $minimumVersion"
+    }
+    check(compileVersion == minimumVersion) {
+      "platformVersion must compile against minimumPlatformVersion to preserve baseline compatibility"
+    }
+    check(currentVersion != compileVersion) {
+      "currentPlatformVersion must track current stable IntelliJ separately from the compile baseline"
+    }
+    logger.lifecycle(
+      "Compatibility policy: IntelliJ $minimumVersion+ (since build $sinceBuild), " +
+        "compiled against the baseline SDK and verified through current stable $currentVersion " +
+        "with no upper build cap",
+    )
+  }
+}
+
 tasks.register("autocompleteReleaseGate") {
   group = "verification"
   description = "Runs the headless unit, deterministic, plugin, verifier, and bundle gates"
@@ -478,8 +515,11 @@ tasks.register("autocompleteReleaseGate") {
     tasks.named("autocompleteProviderModelSafetyGate"),
     tasks.named("buildPlugin"),
     tasks.named("verifyPlugin"),
+    tasks.named("verifyPluginProjectConfiguration"),
+    tasks.named("verifyPluginStructure"),
     tasks.named("verifyPluginBundleSize"),
     tasks.named("verifyMarketplaceMetadata"),
+    tasks.named("verifyCompatibilityPolicy"),
   )
 }
 

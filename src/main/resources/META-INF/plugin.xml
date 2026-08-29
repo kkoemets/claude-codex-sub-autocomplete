@@ -27,10 +27,11 @@
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>0.6.2 — Early Access</h3>
+    <h3>0.6.3 — Early Access</h3>
     <ul>
-      <li>Expands compatibility to IntelliJ IDEA 2025.3 and newer.</li>
-      <li>Adds IntelliJ IDEA 2025.3 to the release-blocking compatibility matrix.</li>
+      <li>Adds verified compatibility with IntelliJ IDEA 2026.2.1.</li>
+      <li>Verifies the oldest supported, current stable, and recommended forward IDE builds before release.</li>
+      <li>Removes a deprecated terminal API dependency through a cross-version compatibility adapter.</li>
     </ul>
   ]]></change-notes>
 
