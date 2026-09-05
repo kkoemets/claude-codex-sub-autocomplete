@@ -7,11 +7,26 @@ import kotlin.test.assertTrue
 
 class AutocompleteSettingsTest {
   @Test
-  fun `new settings use the low-latency Spark pair by default`() {
+  fun `new settings use the pinned Luna low pair by default`() {
     val state = AutocompleteSettings.SettingsState()
 
-    assertEquals("gpt-5.3-codex-spark", state.codexModel)
+    assertEquals("gpt-5.6-luna", state.codexModel)
     assertEquals("low", state.codexReasoningEffort)
+  }
+
+  @Test
+  fun `saved model and effort choices survive a change to the default`() {
+    val settings = AutocompleteSettings()
+    settings.loadState(
+      AutocompleteSettings.SettingsState(
+        settingsVersion = 6,
+        codexModel = "gpt-5.3-codex-spark",
+        codexReasoningEffort = "medium",
+      ),
+    )
+
+    assertEquals("gpt-5.3-codex-spark", settings.state.codexModel)
+    assertEquals("medium", settings.state.codexReasoningEffort)
   }
 
   @Test
@@ -113,7 +128,7 @@ class AutocompleteSettingsTest {
   }
 
   @Test
-  fun `legacy Luna low default migrates to the evaluated Spark pair`() {
+  fun `legacy Luna low default keeps the current default pair`() {
     val settings = AutocompleteSettings()
 
     settings.loadState(
@@ -124,7 +139,7 @@ class AutocompleteSettingsTest {
       ),
     )
 
-    assertEquals("gpt-5.3-codex-spark", settings.state.codexModel)
+    assertEquals("gpt-5.6-luna", settings.state.codexModel)
     assertEquals("low", settings.state.codexReasoningEffort)
   }
 
@@ -144,7 +159,7 @@ class AutocompleteSettingsTest {
   }
 
   @Test
-  fun `previous Luna defaults migrate to the evaluated Spark pair`() {
+  fun `previous Luna none default migrates to the current default pair`() {
     val settings = AutocompleteSettings()
 
     settings.loadState(
@@ -155,12 +170,12 @@ class AutocompleteSettingsTest {
       ),
     )
 
-    assertEquals("gpt-5.3-codex-spark", settings.state.codexModel)
+    assertEquals("gpt-5.6-luna", settings.state.codexModel)
     assertEquals("low", settings.state.codexReasoningEffort)
   }
 
   @Test
-  fun `custom no-reasoning Codex model is preserved during Spark migration`() {
+  fun `custom no-reasoning Codex model is preserved during legacy migration`() {
     val settings = AutocompleteSettings()
 
     settings.loadState(

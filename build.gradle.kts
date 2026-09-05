@@ -96,25 +96,36 @@ tasks.test {
   systemProperty("idea.load.plugins.id", providers.gradleProperty("pluginGroup").get())
 }
 
-intellijPlatformTesting.testIdeUi.register("autocompleteInstalledIdeTest") {
-  type.set(IntelliJPlatformType.IntellijIdeaUltimate)
-  version.set(providers.gradleProperty("currentPlatformVersion"))
-  task {
-    testClassesDirs = ideTestSourceSet.output.classesDirs
-    classpath = ideTestSourceSet.runtimeClasspath
-    useJUnitPlatform()
-    systemProperty(
-      "ideTest.repetitions",
-      providers.gradleProperty("ideTestRepetitions").orElse("3").get(),
-    )
-    systemProperty(
-      "ideTest.requirePhysicalTyping",
-      providers.gradleProperty("requirePhysicalTyping").orElse("false").get(),
-    )
-    systemProperty(
-      "ideTest.ideVersion",
-      providers.gradleProperty("currentPlatformVersion").get(),
-    )
+listOf("autocompleteInstalledIdeTest", "autocompleteInstalledLiveIdeTest").forEach { testTaskName ->
+  intellijPlatformTesting.testIdeUi.register(testTaskName) {
+    type.set(IntelliJPlatformType.IntellijIdeaUltimate)
+    version.set(providers.gradleProperty("currentPlatformVersion"))
+    task {
+      testClassesDirs = ideTestSourceSet.output.classesDirs
+      classpath = ideTestSourceSet.runtimeClasspath
+      useJUnitPlatform()
+      systemProperty(
+        "ideTest.repetitions",
+        providers.gradleProperty("ideTestRepetitions").orElse("3").get(),
+      )
+      systemProperty(
+        "ideTest.requirePhysicalTyping",
+        providers.gradleProperty("requirePhysicalTyping").orElse("false").get(),
+      )
+      systemProperty(
+        "ideTest.ideVersion",
+        providers.gradleProperty("currentPlatformVersion").get(),
+      )
+      systemProperty(
+        "ideTest.liveProviders",
+        if (testTaskName == "autocompleteInstalledLiveIdeTest") {
+          providers.gradleProperty("ideTestLiveProviders").orElse("codex,claude").get()
+        } else "",
+      )
+      systemProperty("ideTest.live", testTaskName == "autocompleteInstalledLiveIdeTest")
+      providers.gradleProperty("ideTestCodexModel").orNull?.let { systemProperty("ideTest.codexModel", it) }
+      providers.gradleProperty("ideTestCodexEffort").orNull?.let { systemProperty("ideTest.codexEffort", it) }
+    }
   }
 }
 
@@ -139,7 +150,7 @@ tasks.register<JavaExec>("subscriptionEvals") {
   )
   systemProperty(
     "eval.codexModel",
-    providers.gradleProperty("evalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+    providers.gradleProperty("evalCodexModel").orElse("gpt-5.6-luna").get(),
   )
   systemProperty(
     "eval.codexReasoningEffort",
@@ -207,7 +218,7 @@ tasks.register<JavaExec>("subscriptionTerminalEvals") {
   )
   systemProperty(
     "terminal.eval.codexModel",
-    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.6-luna").get(),
   )
   systemProperty(
     "terminal.eval.codexReasoningEffort",
@@ -225,7 +236,7 @@ tasks.register<JavaExec>("subscriptionTerminalEvals") {
 
 tasks.register<JavaExec>("terminalLiveEval") {
   group = "verification"
-  description = "Runs the canonical provider-neutral 50-case terminal suite for Claude Haiku and Codex 5.4 none"
+  description = "Runs the canonical provider-neutral 50-case terminal suite on the plugin's provider defaults"
   dependsOn(tasks.testClasses)
   classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
@@ -238,9 +249,6 @@ tasks.register<JavaExec>("terminalLiveEval") {
   systemProperty("terminal.eval.official", "true")
   systemProperty("terminal.eval.repetitions", "0")
   systemProperty("terminal.eval.seed", "20260722")
-  systemProperty("terminal.eval.claudeModel", "haiku")
-  systemProperty("terminal.eval.codexModel", "gpt-5.4")
-  systemProperty("terminal.eval.codexReasoningEffort", "none")
   systemProperty(
     "terminal.eval.timeoutSeconds",
     providers.gradleProperty("terminalEvalTimeoutSeconds").orElse("30").get(),
@@ -271,7 +279,7 @@ tasks.register<JavaExec>("terminalSampleEval") {
   )
   systemProperty(
     "terminal.eval.codexModel",
-    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+    providers.gradleProperty("terminalEvalCodexModel").orElse("gpt-5.6-luna").get(),
   )
   systemProperty(
     "terminal.eval.codexReasoningEffort",
@@ -340,7 +348,7 @@ tasks.register<JavaExec>("subscriptionSampleEval") {
   )
   systemProperty(
     "eval.codexModel",
-    providers.gradleProperty("evalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+    providers.gradleProperty("evalCodexModel").orElse("gpt-5.6-luna").get(),
   )
   systemProperty(
     "eval.codexReasoningEffort",
@@ -378,7 +386,7 @@ tasks.register<JavaExec>("codexLifecycleSmoke") {
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.CodexLifecycleSmoke")
   systemProperty(
     "eval.codexModel",
-    providers.gradleProperty("evalCodexModel").orElse("gpt-5.3-codex-spark").get(),
+    providers.gradleProperty("evalCodexModel").orElse("gpt-5.6-luna").get(),
   )
   systemProperty(
     "eval.codexReasoningEffort",
@@ -392,6 +400,15 @@ tasks.register<JavaExec>("claudeLifecycleSmoke") {
   dependsOn(tasks.testClasses)
   classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.ClaudeLifecycleSmoke")
+}
+
+tasks.register<JavaExec>("claudeCliCompatibilitySmoke") {
+  group = "verification"
+  description = "Checks installed Claude CLI flags and signed-out failures without an authenticated model request"
+  dependsOn(tasks.testClasses)
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  mainClass.set("com.kkoemets.subscriptionautocomplete.eval.ClaudeCliCompatibilitySmoke")
+  providers.gradleProperty("claudeExecutable").orNull?.let { systemProperty("claude.executable", it) }
 }
 
 tasks.register<JavaExec>("autocompleteExpectationsEval") {

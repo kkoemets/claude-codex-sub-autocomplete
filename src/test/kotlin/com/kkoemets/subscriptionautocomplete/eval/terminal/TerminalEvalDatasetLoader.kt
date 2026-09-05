@@ -6,8 +6,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 object TerminalEvalDatasetLoader {
-  const val RESOURCE = "terminal/corpus-v1.json"
-  const val VERSION = "terminal-positive-corpus-v1"
+  const val RESOURCE = "terminal/corpus-v2.json"
+  const val VERSION = "terminal-positive-corpus-v2"
   const val EXPECTED_CASES = 200
   const val EXPECTED_CATEGORIES = 20
 

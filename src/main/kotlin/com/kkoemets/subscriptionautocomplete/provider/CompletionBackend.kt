@@ -56,14 +56,14 @@ interface CompletionBackend {
 object ProviderPolicy {
   const val DEFAULT_CLAUDE_MODEL = "haiku"
   const val CODEX_SPARK_MODEL = "gpt-5.3-codex-spark"
-  const val DEFAULT_CODEX_MODEL = CODEX_SPARK_MODEL
+  const val DEFAULT_CODEX_MODEL = "gpt-5.6-luna"
   const val DEFAULT_CODEX_EFFORT = "low"
   const val LEGACY_CODEX_MODEL = "gpt-5.6-luna"
 
   val claudeModels = listOf("haiku", "sonnet", "opus")
   val codexFallbackChoices = listOf(
     DEFAULT_CODEX_MODEL,
-    LEGACY_CODEX_MODEL,
+    CODEX_SPARK_MODEL,
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.5",

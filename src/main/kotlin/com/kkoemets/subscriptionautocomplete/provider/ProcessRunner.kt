@@ -74,7 +74,7 @@ object ProcessRunner {
                 val line = reader.readLine() ?: break
                 append(line).append('\n')
                 if (stopAfterLine(line) && terminatedEarly.compareAndSet(false, true)) {
-                  process.destroy()
+                  terminateProcessTree(process)
                   break
                 }
               }
@@ -90,7 +90,7 @@ object ProcessRunner {
         writer.flush()
       }
       val finished = process.waitFor(timeoutSeconds.coerceIn(2, 120).toLong(), TimeUnit.SECONDS)
-      if (!finished) process.destroyForcibly()
+      if (!finished) terminateProcessTree(process)
       ProcessResult(
         exitCode = if (finished) process.exitValue() else -1,
         stdout = stdout.get(3, TimeUnit.SECONDS),
@@ -99,13 +99,20 @@ object ProcessRunner {
         terminatedEarly = terminatedEarly.get(),
       )
     } catch (interrupted: InterruptedException) {
-      process.destroyForcibly()
+      terminateProcessTree(process)
       Thread.currentThread().interrupt()
       throw interrupted
     } finally {
-      if (process.isAlive) process.destroyForcibly()
+      if (process.isAlive) terminateProcessTree(process)
       readers.shutdownNow()
     }
+  }
+
+  private fun terminateProcessTree(process: Process) {
+    // Capture children before stopping the parent, otherwise they may be reparented.
+    val descendants = process.descendants().use { it.toList() }
+    descendants.asReversed().forEach(ProcessHandle::destroyForcibly)
+    process.destroyForcibly()
   }
 }
 

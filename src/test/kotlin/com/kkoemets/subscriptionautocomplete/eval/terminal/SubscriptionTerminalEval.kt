@@ -1,6 +1,7 @@
 package com.kkoemets.subscriptionautocomplete.eval.terminal
 
 import com.kkoemets.subscriptionautocomplete.provider.BackendRegistry
+import com.kkoemets.subscriptionautocomplete.context.SecretRedactor
 import com.kkoemets.subscriptionautocomplete.provider.BackendResult
 import com.kkoemets.subscriptionautocomplete.provider.ProviderPolicy
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
@@ -39,7 +40,7 @@ object SubscriptionTerminalEval {
         "Official terminal live evaluation requires exactly Claude and Codex"
       }
       check(reports.all { it.metadata.official }) {
-        "Official terminal live evaluation requires Claude Haiku and Codex gpt-5.4/none"
+        "Official terminal live evaluation requires the plugin's default provider/model profiles"
       }
     }
     reports.forEach { report -> validateIfOfficial(dataset, report) }
@@ -136,6 +137,9 @@ object SubscriptionTerminalEval {
     val scored = TerminalCommandQualityEvaluator.score(case, observation, phase, repetition)
     if (System.getProperty("terminal.eval.printCandidates", "false").toBoolean()) {
       println("  candidate: ${observation.candidate.ifBlank { "<blank>" }}")
+      observation.error?.let {
+        println("  provider error: ${SecretRedactor.redact(it).replace('\n', ' ').take(500)}")
+      }
     }
     println(
       "${provider.name.padEnd(6)} ${phase.padEnd(4)} r${repetition.toString().padEnd(2)} " +
@@ -200,8 +204,9 @@ object SubscriptionTerminalEval {
     provider: ProviderKind,
     settings: AutocompleteSettings.SettingsState,
   ): Boolean = when (provider) {
-    ProviderKind.CLAUDE -> settings.claudeModel == "haiku"
-    ProviderKind.CODEX -> settings.codexModel == "gpt-5.4" && settings.codexReasoningEffort == "none"
+    ProviderKind.CLAUDE -> settings.claudeModel == ProviderPolicy.DEFAULT_CLAUDE_MODEL
+    ProviderKind.CODEX -> settings.codexModel == ProviderPolicy.DEFAULT_CODEX_MODEL &&
+      settings.codexReasoningEffort == ProviderPolicy.DEFAULT_CODEX_EFFORT
   }
 
   private fun caseFingerprint(case: TerminalEvalCase): String = listOf(

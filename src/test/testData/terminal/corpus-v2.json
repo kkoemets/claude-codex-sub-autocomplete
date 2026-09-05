@@ -1,5 +1,5 @@
 {
-  "version": "terminal-positive-corpus-v1",
+  "version": "terminal-positive-corpus-v2",
   "categories": [
     {
       "id": "filesystem",
@@ -499,7 +499,7 @@
       "cases": [
         {
           "id": "network-health-curl",
-          "request": "# call the local api health endpoint",
+          "request": "# call the local API health endpoint at http://localhost:8080/health",
           "reference": "curl --fail --silent --show-error http://localhost:8080/health",
           "requiredGroups": [["curl"], ["localhost:8080/health"]]
         },
@@ -1082,7 +1082,7 @@
         },
         {
           "id": "git-restore-application-yaml",
-          "request": "# restore application yaml from HEAD",
+          "request": "# restore application.yaml from HEAD",
           "reference": "git restore --source=HEAD -- application.yaml",
           "requiredGroups": [["git"], ["restore", "checkout", "show"], ["HEAD"], ["application.yaml"]],
           "validator": "git-restore-file-from-head"

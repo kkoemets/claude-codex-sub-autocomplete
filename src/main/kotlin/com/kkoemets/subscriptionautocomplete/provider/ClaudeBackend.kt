@@ -10,6 +10,7 @@ import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
 
 class ClaudeBackend : CompletionBackend {
@@ -31,42 +32,11 @@ class ClaudeBackend : CompletionBackend {
           return@use BackendResult.Failure(it)
         }
         val model = settings.claudeModel.trim().ifEmpty { ProviderPolicy.DEFAULT_CLAUDE_MODEL }
-        val settingsJson = JsonObject().apply {
-          addProperty("model", model)
-          add("availableModels", JsonArray().apply { add(model) })
-          addProperty("enforceAvailableModels", true)
-          add("fallbackModel", JsonArray())
-        }.toString()
         val maxCharacters = CompletionOutputEnvelope.maxCharacters(settings.maxOutputTokens)
         val streamLimiter = ClaudeStreamLimiter(maxCharacters)
         val providerStartedAt = System.nanoTime()
         val result = ProcessRunner.runStreamingLines(
-          command = listOf(
-            executable.toString(),
-            "-p",
-            "--output-format",
-            "stream-json",
-            "--verbose",
-            "--include-partial-messages",
-            "--model",
-            model,
-            "--effort",
-            "low",
-            "--no-session-persistence",
-            "--safe-mode",
-            "--disable-slash-commands",
-            "--tools",
-            "",
-            "--disallowedTools",
-            "*",
-            "--strict-mcp-config",
-            "--permission-mode",
-            "dontAsk",
-            "--settings",
-            settingsJson,
-            "--system-prompt",
-            prompt.systemPrompt + "\nReturn no more than ${settings.maxOutputTokens} approximate tokens.",
-          ),
+          command = command(executable, prompt, model, settings.maxOutputTokens),
           input = prompt.userPrompt,
           workingDirectory = workspace,
           timeoutSeconds = settings.timeoutSeconds,
@@ -84,7 +54,12 @@ class ClaudeBackend : CompletionBackend {
           )
           result.stdout.isNotBlank() -> {
             val response = parseOutput(result.stdout, model, maxCharacters)
-            if (
+            if (result.exitCode != 0 && response is BackendResult.Success) {
+              BackendResult.Failure(
+                result.stderr.takeIf(String::isNotBlank)?.let { cleanError(it, "") }
+                  ?: "Claude exited with code ${result.exitCode}. No partial suggestion was shown.",
+              )
+            } else if (
               result.exitCode != 0 &&
               response is BackendResult.Failure &&
               response.message == UNREADABLE_RESPONSE
@@ -119,12 +94,46 @@ class ClaudeBackend : CompletionBackend {
     BackendResult.Failure("Claude completion failed: ${error.message ?: error.javaClass.simpleName}")
   }
 
+  internal fun command(executable: Path, prompt: CompletionPrompt, model: String, maxOutputTokens: Int): List<String> {
+    val settingsJson = JsonObject().apply {
+      addProperty("model", model)
+      add("availableModels", JsonArray().apply { add(model) })
+      addProperty("enforceAvailableModels", true)
+      add("fallbackModel", JsonArray())
+    }.toString()
+    return listOf(
+      executable.toString(),
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-partial-messages",
+      "--model",
+      model,
+      "--effort",
+      "low",
+      "--no-session-persistence",
+      "--safe-mode",
+      "--disable-slash-commands",
+      "--tools",
+      "",
+      "--disallowedTools",
+      "*",
+      "--strict-mcp-config",
+      "--permission-mode",
+      "dontAsk",
+      "--settings",
+      settingsJson,
+      "--system-prompt",
+      prompt.systemPrompt + "\nReturn no more than $maxOutputTokens approximate tokens.",
+    )
+  }
+
   internal fun parseResult(stdout: String, model: String): BackendResult {
     val response = runCatching { JsonParser.parseString(stdout).asJsonObject }.getOrNull()
       ?: return BackendResult.Failure(UNREADABLE_RESPONSE)
     if (response.get("is_error")?.asBoolean == true) {
-      val message = response.get("result")?.asString ?: "Claude completion failed."
-      return BackendResult.Failure(cleanSubscriptionError(message))
+      return BackendResult.Failure(responseError(response))
     }
     val text = response.get("result")?.asString.orEmpty()
     return if (text.isBlank()) BackendResult.Failure("Claude returned no completion.")
@@ -142,7 +151,7 @@ class ClaudeBackend : CompletionBackend {
     val result = messages.lastOrNull { it.get("type")?.asString == "result" }
     if (result != null) {
       if (result.get("is_error")?.asBoolean == true || result.get("subtype")?.asString?.startsWith("error") == true) {
-        return BackendResult.Failure(cleanSubscriptionError(result.get("result")?.asString ?: "Claude completion failed."))
+        return BackendResult.Failure(responseError(result))
       }
       val text = result.get("result")?.asString.orEmpty()
       return when {
@@ -166,6 +175,15 @@ class ClaudeBackend : CompletionBackend {
       )
       else -> BackendResult.Success(partial, model, "isolated stream-json partial fallback")
     }
+  }
+
+  private fun responseError(response: JsonObject): String {
+    val result = response.get("result")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+      ?.asString?.takeIf(String::isNotBlank)
+    val errors = response.get("errors")?.takeIf { it.isJsonArray }?.asJsonArray
+      ?.mapNotNull { it.takeIf { value -> value.isJsonPrimitive && value.asJsonPrimitive.isString }?.asString }
+      ?.joinToString("; ")?.takeIf(String::isNotBlank)
+    return cleanSubscriptionError(result ?: errors ?: "Claude completion failed.")
   }
 
   private fun cleanError(stderr: String, stdout: String): String =

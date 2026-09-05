@@ -44,19 +44,39 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    ./gradlew autocompleteInstalledIdeTest --no-daemon
    ```
 
+   This uses a fixture provider and verifies IDE integration only. Verify real
+   subscription suggestions separately with both authenticated providers:
+
+   ```bash
+   ./gradlew autocompleteInstalledLiveIdeTest -PrequirePhysicalTyping=true --no-daemon
+   ```
+
 5. Run the canonical live terminal quality gate:
 
    ```bash
    ./gradlew terminalLiveEval --no-daemon
    ```
 
-   This runs the same 50 provider-neutral cases once against Claude Haiku and Codex
-   `gpt-5.4`, with Codex reasoning set to `none`. Each provider must pass at least 45/50
+   This runs the same 50 provider-neutral cases once against the plugin defaults:
+   Claude Haiku and Codex `gpt-5.6-luna` with `low` reasoning. The harness
+   resolves these profiles from `ProviderPolicy`, so release checks track the
+   defaults users receive. Each provider must pass at least 45/50
    cases (90%); the release target is 46/50 or better (92%). The critical
    direct-child Git-repository case must pass independently, every category must
    have a passing case, and every non-empty generated command must receive a local
    shell syntax check. Inspect the redacted reports in
    `build/reports/terminal-live-evals/` before continuing.
+
+   Missing authentication, unsupported models, and exhausted subscription limits
+   are incomplete live validation. Do not count an alternative model run as a
+   passing result for the default model.
+
+   When no Claude subscription is available, validate its integration with
+   `./gradlew claudeCliCompatibilitySmoke autocompleteInteractiveReleaseGate --no-daemon`.
+   Record Claude model quality as untested because no subscription was available.
+   This checks the real CLI contract, subprocess failure handling, and packaged
+   IDE integration with fixtures; it does not produce a passing Claude live-quality
+   score. Record physical keyboard coverage separately from IDE action/API coverage.
 
    The 200-case deterministic corpus remains part of the headless release gate.
    It checks the shared prompt, sanitizer, semantic scorer, and safety contracts

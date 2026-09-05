@@ -34,6 +34,7 @@ object TerminalCommandQualityEvaluator {
       if (!hasRequiredPrimaryCommand(case, executableCandidate)) add("semantic-command-binding")
       if (!hasRequiredAction(case, executableCandidate)) add("semantic-action-binding")
       if (!hasBoundGitRequirements(case, executableCandidate)) add("semantic-operand-binding")
+      if (!hasBoundDockerRunOperands(case, executableCandidate)) add("semantic-image-binding")
       case.forbiddenFragments.forEach { fragment ->
         if (lowerCandidate.contains(fragment.lowercase(Locale.ROOT))) add("forbidden-fragment")
       }
@@ -450,9 +451,29 @@ object TerminalCommandQualityEvaluator {
         val action = composeAction(words, index + 1) ?: return@mapNotNull null
         DockerInvocation("compose", action.lowercase(Locale.ROOT))
       } else {
-        DockerInvocation("docker", first)
+        DockerInvocation("docker", first, words.drop(index + 1))
       }
     }
+
+  private fun hasBoundDockerRunOperands(case: TerminalEvalCase, candidate: String): Boolean {
+    if (case.category != "docker") return true
+    val reference = dockerInvocations(case.reference).singleOrNull { it.action == "run" } ?: return true
+    val expected = dockerRunOperands(reference.arguments)
+    return expected.isNotEmpty() && dockerInvocations(candidate).any {
+      it.family == "docker" && it.action == "run" && dockerRunOperands(it.arguments) == expected
+    }
+  }
+
+  private fun dockerRunOperands(arguments: List<String>): List<String> {
+    var index = 0
+    while (index < arguments.size) {
+      val argument = arguments[index]
+      if (argument == "--") return arguments.drop(index + 1)
+      if (!argument.startsWith('-')) return arguments.drop(index)
+      index += if (argument in DOCKER_RUN_OPTIONS_WITH_VALUE) 2 else 1
+    }
+    return emptyList()
+  }
 
   private fun composeAction(words: List<String>, startIndex: Int): String? {
     var index = startIndex
@@ -656,7 +677,7 @@ object TerminalCommandQualityEvaluator {
               (option == "--dry-run" || SHORT_OPTION.matches(option) && 'n' in option.drop(1)))
         }
   }
-  private data class DockerInvocation(val family: String, val action: String)
+  private data class DockerInvocation(val family: String, val action: String, val arguments: List<String> = emptyList())
 
   private val SHORT_OPTION = Regex("-[a-zA-Z]+")
   private val KUBECTL_BOOLEAN_SHORT_CLUSTER = Regex("-[Ahw]+")
@@ -741,6 +762,12 @@ object TerminalCommandQualityEvaluator {
     "-c",
     "-H",
     "-l",
+  )
+  private val DOCKER_RUN_OPTIONS_WITH_VALUE = setOf(
+    "-p", "--publish", "-e", "--env", "--env-file", "-v", "--volume", "--mount",
+    "--name", "--network", "-w", "--workdir", "-u", "--user", "--entrypoint",
+    "--platform", "-l", "--label", "-h", "--hostname", "--pull", "--cpus",
+    "-m", "--memory", "--restart",
   )
   private val COMPOSE_OPTIONS_WITH_VALUE = setOf(
     "--ansi",

@@ -2,6 +2,16 @@
 
 All notable user-facing changes are documented here.
 
+## Unreleased
+
+- Reject partial Claude output when its process fails, preserve structured CLI error details, and stop child processes on cancellation, timeout, or output overflow.
+- Add subprocess integration checks and an installed Claude CLI compatibility check that needs no active subscription.
+- Set GPT-5.6 Luna with low reasoning as the default Codex profile and the pinned live-test profile.
+- Route the plugin's manual completion action directly to its provider, even when another inline provider is registered first.
+- Clarify that editor completions should satisfy the surrounding function's intent, including nearby comments, while retaining the output and tool restrictions.
+- Clarified terminal request scope so a current-directory operation does not acquire a child-directory loop, and container requests are not replaced by package scripts.
+- Added an opt-in installed-IDE test using real Claude and Codex subscriptions to verify ghost text and explicit acceptance.
+
 ## 0.6.3 — Early Access
 
 - Added verified compatibility with IntelliJ IDEA 2026.2, including the current 2026.2.1 release.

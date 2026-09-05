@@ -48,10 +48,10 @@ class SubscriptionCompletionProvider private constructor(
     @Suppress("UNUSED_PARAMETER") injected: Unit = Unit,
   ) : this(engineResolver, backendLookup, validatorLookup, observer)
 
-  override val id = InlineCompletionProviderID("SubscriptionAutocomplete")
+  override val id = PROVIDER_ID
 
   override fun isEnabled(event: InlineCompletionEvent): Boolean {
-    if (event !is InlineCompletionEvent.DirectCall && event !is InlineCompletionEvent.DocumentChange) return false
+    if (!event.isManualCompletion() && event !is InlineCompletionEvent.DocumentChange) return false
     val settings = AutocompleteSettings.getInstance().snapshot()
     if (!settings.enabled) return false
     val mode = if (event.isManualCompletion()) CompletionMode.MANUAL else CompletionMode.AUTOMATIC
@@ -315,6 +315,7 @@ class SubscriptionCompletionProvider private constructor(
   }
 
   companion object {
+    val PROVIDER_ID = InlineCompletionProviderID("SubscriptionAutocomplete")
     private val EMPTY_SUGGESTION = InlineCompletionSingleSuggestion.build { _ -> }
 
     private fun elapsedMillis(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000
@@ -454,7 +455,8 @@ private fun estimatedContextUnits(context: CompletionContext): Int {
   return maxOf(1, (characters + 3) / 4)
 }
 
-private fun InlineCompletionEvent.isManualCompletion(): Boolean = this is InlineCompletionEvent.DirectCall
+private fun InlineCompletionEvent.isManualCompletion(): Boolean =
+  this is InlineCompletionEvent.DirectCall || this is InlineCompletionEvent.ManualCall
 
 private fun InlineCompletionRequest.typedText(): String =
   (event as? InlineCompletionEvent.DocumentChange)?.typing?.typed.orEmpty()

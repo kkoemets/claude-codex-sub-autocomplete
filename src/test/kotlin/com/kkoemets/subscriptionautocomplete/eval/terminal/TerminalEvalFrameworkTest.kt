@@ -108,6 +108,9 @@ class TerminalEvalFrameworkTest {
       "database-redis-ping" to "bash -lc 'redis-cli -u \"\$REDIS_URL\" ping'",
       "typescript-no-emit" to "pnpm exec tsc --noEmit",
       "typescript-no-emit" to "pnpm tsc --noEmit",
+      "docker-run-api" to "docker run --rm --publish=8080:8080 api:local",
+      "docker-run-api" to "docker --context local run --rm -p8080:8080 api:local",
+      "docker-run-api" to "docker run --name temp-api --rm -p8080:8080 api:local",
       "compose-run-migrate" to "docker compose -p sample run --rm migrate",
       "mutate-recreate-dist" to
         "[ -d /workspace/sample-project/dist ] && rm -rf /workspace/sample-project/dist; " +
@@ -220,6 +223,8 @@ class TerminalEvalFrameworkTest {
       "git-status-short" to "git status --short; chown -R root ..",
       "git-status-short" to "git status --short; chmod -R 777 .",
       "docker-run-api" to "docker version run -p 8080:8080 api:local",
+      "docker-run-api" to "docker run --rm -p 8080:8080 container-app api:local",
+      "docker-run-api" to "docker run --rm -p 8080:8080 api:local container-app",
     )
 
     rejected.forEach { (id, candidate) ->

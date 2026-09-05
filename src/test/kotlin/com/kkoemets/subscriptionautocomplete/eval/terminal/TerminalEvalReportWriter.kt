@@ -207,6 +207,6 @@ object TerminalEvalReportWriter {
     .replace("<", "&lt;")
     .replace(">", "&gt;")
 
-  const val PROMPT_POLICY_VERSION = "terminal-command-v6"
-  const val EVALUATOR_VERSION = "terminal-semantic-v11"
+  const val PROMPT_POLICY_VERSION = "terminal-command-v8"
+  const val EVALUATOR_VERSION = "terminal-semantic-v12"
 }

@@ -81,6 +81,8 @@ API-key authentication is intentionally rejected. A connection test reports when
 
 The `AI` status-bar entry shows the selected provider and current activity. Its menu provides the quickest path to manual completion, diagnostics, and settings.
 
+Codex defaults to `gpt-5.6-luna` with `low` reasoning. Existing saved model and reasoning choices are preserved.
+
 ## Terminal commands
 
 The plugin works in IntelliJ's classic and Reworked terminals. At an empty shell prompt, type a request such as:
@@ -158,7 +160,7 @@ For additional help, read [Support](SUPPORT.md) or open a bug report with diagno
 ```
 
 `terminalLiveEval` is the explicit network-backed quality gate: it runs one shared
-50-case suite against Claude Haiku and Codex `gpt-5.4`, with Codex reasoning set to `none`.
+50-case suite against Claude Haiku and Codex `gpt-5.6-luna`, with Codex reasoning set to `low`.
 It requires at least 90% from each provider and targets 92% or better. It does not
 open or control IntelliJ.
 

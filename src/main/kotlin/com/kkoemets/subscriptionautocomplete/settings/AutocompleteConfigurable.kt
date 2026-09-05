@@ -33,12 +33,12 @@ class AutocompleteConfigurable : Configurable {
       "in the live multi-language evaluation. Choose a larger Claude model only when quality matters more than speed.</html>"
   }
   private val codexModel = editableCombo(ProviderPolicy.codexFallbackChoices).apply {
-    toolTipText = "<html>Default: GPT-5.3 Codex Spark. It matched Luna's measured pass rate and completed<br>" +
-      "the full LRU-class test in about 4 seconds instead of about 16 seconds.</html>"
+    toolTipText = "<html>Default: GPT-5.6 Luna with low reasoning.<br>" +
+      "Choose a model available through your ChatGPT subscription.</html>"
   }
   private val codexEffort = editableCombo(ProviderPolicy.codexReasoningEfforts).apply {
-    toolTipText = "<html>Default: low, because the default Codex Spark model rejects none.<br>" +
-      "Use none only with GPT-5.4, GPT-5.5, or GPT-5.6 models that support reasoning-free requests.</html>"
+    toolTipText = "<html>Default: low. Higher effort can increase completion latency.<br>" +
+      "Unsupported model and effort combinations are reported as errors.</html>"
   }
   private val claudeExecutable = JBTextField()
   private val codexExecutable = JBTextField()

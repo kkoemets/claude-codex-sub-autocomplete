@@ -2,11 +2,13 @@ package com.kkoemets.subscriptionautocomplete.completion
 
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import com.intellij.openapi.actionSystem.ActionUpdateThread
-import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.codeInsight.inline.completion.InlineCompletion
+import com.intellij.codeInsight.inline.completion.InlineCompletionEvent
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.DumbAware
@@ -18,9 +20,7 @@ class TriggerCompletionAction : AnAction(), DumbAware {
     val editor = event.getData(CommonDataKeys.EDITOR)
       ?: FileEditorManager.getInstance(project).selectedTextEditor
       ?: return
-    val actionManager = ActionManager.getInstance()
-    val action = actionManager.getAction(IdeActions.ACTION_CALL_INLINE_COMPLETION) ?: return
-    actionManager.tryToExecute(action, event.inputEvent, editor.contentComponent, event.place, true)
+    trigger(editor)
   }
 
   override fun update(event: AnActionEvent) {
@@ -35,11 +35,14 @@ class TriggerCompletionAction : AnAction(), DumbAware {
     fun trigger(project: Project) {
       if (!AutocompleteSettings.getInstance().state.enabled) return
       val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-      val actionManager = ActionManager.getInstance()
-      val action = actionManager.getAction(IdeActions.ACTION_CALL_INLINE_COMPLETION) ?: return
-      actionManager.tryToExecute(action, null, editor.contentComponent, ACTION_PLACE, true)
+      trigger(editor)
     }
 
-    private const val ACTION_PLACE = "SubscriptionAutocompleteStatusBar"
+    internal fun trigger(editor: Editor) {
+      if (!AutocompleteSettings.getInstance().state.enabled) return
+      InlineCompletion.getHandlerOrNull(editor)?.invokeEvent(
+        InlineCompletionEvent.ManualCall(editor, SubscriptionCompletionProvider.PROVIDER_ID, UserDataHolderBase()),
+      )
+    }
   }
 }
