@@ -7,8 +7,8 @@ Releases are built, verified, signed, and published locally.
 - a clean `main` working tree;
 - JDK 21;
 - authenticated Claude Code and Codex subscriptions for live smoke tests;
-- an accepted JetBrains Marketplace Developer Agreement and verified trader profile;
-- a Marketplace permanent token; and
+- a JetBrains Marketplace account with permission to update the plugin and completed developer/vendor declarations (trader or non-trader, as applicable);
+- a Marketplace permanent token only when publishing through Gradle; and
 - a signing private key and certificate chain stored outside the repository.
 
 Never commit signing material or a Marketplace token. Provide credentials only through these environment variables:
@@ -133,13 +133,38 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
 
 Create and push an annotated version tag only after the signed artifact passes every gate. Attach the exact signed ZIP and a `SHA256SUMS` file to the corresponding GitHub Release.
 
-Publish to JetBrains Marketplace's public default channel with:
+To submit the already verified ZIP through the authenticated Marketplace website,
+open the existing plugin's administration page and choose **Upload Update**. Select
+the exact signed ZIP, choose **Stable**, and leave **Make Hidden** unchecked for
+public availability after approval. Browser uploads do not require `PUBLISH_TOKEN`.
+
+Before submission, review the listing's description, change notes, Getting Started
+instructions, policy links, media, and product compatibility. With **Use changes
+from UI** off, the description and change notes come from `plugin.xml`; Getting
+Started and policy links need separate updates in the listing. Keep the advertised
+behavior aligned with the version available to users. See
+[the 0.6.4 Marketplace submission record](docs/marketplace/0.6.4.md).
+
+For Gradle publication to the public default channel, use:
 
 ```bash
 ./gradlew publishPlugin --no-daemon
 ```
 
-The configured publishing task uses `PUBLISH_TOKEN`, channel `default`, and `hidden=false`. Confirm the uploaded Marketplace version, plugin ID, compatibility range, release notes, and checksum match the GitHub Release before announcing it.
+The configured publishing task uses `PUBLISH_TOKEN`, channel `default`, and
+`hidden=false`. Reuse the verified artifact; a newly built or signed ZIP needs its
+own identity checks before submission.
+
+An accepted upload is submitted for Marketplace review; it is not yet a public
+release. Record the update ID and check its version, plugin ID, compatibility,
+notes, and verifier results. JetBrains advises following up if no review-status
+notification arrives within two business days; this is not an approval deadline.
+See [Plugin updates](https://plugins.jetbrains.com/docs/marketplace/plugin-updates.html).
+
+After approval, verify public availability and download the Marketplace artifact.
+Marketplace may re-sign it, so its whole-ZIP checksum can differ from the author
+ZIP. Verify archive/signature validity and compare plugin payloads with the
+GitHub release before announcing publication.
 
 ## Rollback
 
