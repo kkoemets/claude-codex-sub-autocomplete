@@ -12,14 +12,15 @@ body:
     id: plugin-version
     attributes:
       label: Plugin version
-      placeholder: 0.5.7
+      placeholder: 0.6.4
     validations:
       required: true
   - type: input
     id: ide-version
     attributes:
-      label: IntelliJ IDEA version
-      placeholder: IntelliJ IDEA 2026.1.4
+      label: IDE product, version, and build number
+      description: Specify IntelliJ IDEA, PyCharm, or Android Studio. Copy the version and build number from Help → About.
+      placeholder: PyCharm 2026.2.1 (PY-262.9437.214)
     validations:
       required: true
   - type: dropdown

@@ -79,6 +79,9 @@ intellijPlatform {
         IntelliJPlatformType.IntellijIdeaUltimate,
         providers.gradleProperty("currentPlatformVersion").get(),
       )
+      create(IntelliJPlatformType.PyCharm, providers.gradleProperty("minimumPlatformVersion").get())
+      create(IntelliJPlatformType.PyCharm, providers.gradleProperty("currentPyCharmVersion").get())
+      create(IntelliJPlatformType.AndroidStudio, providers.gradleProperty("currentAndroidStudioVersion").get())
       recommended()
     }
   }
@@ -86,6 +89,9 @@ intellijPlatform {
 
 kotlin {
   jvmToolchain(providers.gradleProperty("javaVersion").get().toInt())
+  // Shared runtime-log checks are compiled into tests only, never the plugin ZIP.
+  sourceSets.named("test") { kotlin.srcDir("src/testSupport/kotlin") }
+  sourceSets.named("ideTest") { kotlin.srcDir("src/testSupport/kotlin") }
   compilerOptions {
     jvmDefault.set(org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode.NO_COMPATIBILITY)
   }
@@ -96,35 +102,57 @@ tasks.test {
   systemProperty("idea.load.plugins.id", providers.gradleProperty("pluginGroup").get())
 }
 
-listOf("autocompleteInstalledIdeTest", "autocompleteInstalledLiveIdeTest").forEach { testTaskName ->
-  intellijPlatformTesting.testIdeUi.register(testTaskName) {
-    type.set(IntelliJPlatformType.IntellijIdeaUltimate)
-    version.set(providers.gradleProperty("currentPlatformVersion"))
-    task {
-      testClassesDirs = ideTestSourceSet.output.classesDirs
-      classpath = ideTestSourceSet.runtimeClasspath
-      useJUnitPlatform()
-      systemProperty(
-        "ideTest.repetitions",
-        providers.gradleProperty("ideTestRepetitions").orElse("3").get(),
-      )
-      systemProperty(
-        "ideTest.requirePhysicalTyping",
-        providers.gradleProperty("requirePhysicalTyping").orElse("false").get(),
-      )
-      systemProperty(
-        "ideTest.ideVersion",
-        providers.gradleProperty("currentPlatformVersion").get(),
-      )
-      systemProperty(
-        "ideTest.liveProviders",
-        if (testTaskName == "autocompleteInstalledLiveIdeTest") {
-          providers.gradleProperty("ideTestLiveProviders").orElse("codex,claude").get()
-        } else "",
-      )
-      systemProperty("ideTest.live", testTaskName == "autocompleteInstalledLiveIdeTest")
-      providers.gradleProperty("ideTestCodexModel").orNull?.let { systemProperty("ideTest.codexModel", it) }
-      providers.gradleProperty("ideTestCodexEffort").orNull?.let { systemProperty("ideTest.codexEffort", it) }
+data class InstalledIdeTarget(val type: IntelliJPlatformType, val versionProperty: String, val taskSuffix: String)
+
+val installedIdeTargets = listOf(
+  InstalledIdeTarget(IntelliJPlatformType.IntellijIdeaUltimate, "currentPlatformVersion", "Ide"),
+  InstalledIdeTarget(IntelliJPlatformType.PyCharm, "currentPyCharmVersion", "PyCharm"),
+  InstalledIdeTarget(IntelliJPlatformType.AndroidStudio, "currentAndroidStudioVersion", "AndroidStudio"),
+)
+
+installedIdeTargets.forEach { target ->
+  listOf(false, true).forEach { live ->
+    val testTaskName = "autocompleteInstalled${if (live) "Live" else ""}${target.taskSuffix}Test"
+    intellijPlatformTesting.testIdeUi.register(testTaskName) {
+      type.set(target.type)
+      version.set(providers.gradleProperty(target.versionProperty))
+      useInstaller.set(true)
+      task {
+        testClassesDirs = ideTestSourceSet.output.classesDirs
+        classpath = ideTestSourceSet.runtimeClasspath
+        useJUnitPlatform()
+        systemProperty(
+          "ideTest.repetitions",
+          providers.gradleProperty("ideTestRepetitions").orElse("3").get(),
+        )
+        systemProperty(
+          "ideTest.requirePhysicalTyping",
+          providers.gradleProperty("requirePhysicalTyping").orElse("false").get(),
+        )
+        systemProperty(
+          "ideTest.ideVersion",
+          providers.gradleProperty(target.versionProperty).get(),
+        )
+        systemProperty("ideTest.productCode", target.type.code)
+        systemProperty("ideTest.externalTerminalInput", providers.gradleProperty("ideTestExternalTerminalInput").orElse("false").get())
+        systemProperty("ideTest.externalEditorInput", providers.gradleProperty("ideTestExternalEditorInput").orElse("false").get())
+        providers.gradleProperty("ideTestPluginPath").orNull?.let { systemProperty("ideTest.pluginPath", it) }
+        systemProperty("ideTest.reworkedOnly", providers.gradleProperty("ideTestReworkedOnly").orElse("false").get())
+        systemProperty("ideTest.terminalsOnly", providers.gradleProperty("ideTestTerminalsOnly").orElse("false").get())
+        doFirst {
+          systemProperty("ideTest.platformPath", platformPath.toString())
+          systemProperty("ideTest.expectedBuild", productInfo.buildNumber)
+        }
+        systemProperty(
+          "ideTest.liveProviders",
+          if (live) {
+            providers.gradleProperty("ideTestLiveProviders").orElse("codex,claude").get()
+          } else "",
+        )
+        systemProperty("ideTest.live", live)
+        providers.gradleProperty("ideTestCodexModel").orNull?.let { systemProperty("ideTest.codexModel", it) }
+        providers.gradleProperty("ideTestCodexEffort").orNull?.let { systemProperty("ideTest.codexEffort", it) }
+      }
     }
   }
 }
@@ -473,8 +501,12 @@ tasks.register("verifyMarketplaceMetadata") {
     check("<vendor url=\"https://github.com/kkoemets/claude-codex-sub-autocomplete\"" in metadata)
     check("<description>" in metadata)
     check("<change-notes>" in metadata)
-    check("<depends>com.intellij.modules.idea</depends>" in metadata) {
-      "Marketplace compatibility must be limited to IntelliJ IDEA"
+    check("<depends>com.intellij.modules.idea</depends>" !in metadata) {
+      "IDEA-only dependencies prevent cross-product installation"
+    }
+    check("<depends>com.intellij.modules.platform</depends>" in metadata &&
+      "<depends>com.intellij.modules.lang</depends>" in metadata) {
+      "Editor completion requires shared platform and language modules"
     }
     check("<depends>org.jetbrains.plugins.terminal</depends>" in metadata) {
       "Terminal command generation requires the bundled Terminal plugin"
@@ -514,6 +546,17 @@ tasks.register("verifyCompatibilityPolicy") {
     check(currentVersion != compileVersion) {
       "currentPlatformVersion must track current stable IntelliJ separately from the compile baseline"
     }
+    installedIdeTargets.forEach { target ->
+      val version = providers.gradleProperty(target.versionProperty).get()
+      val parts = version.split('.')
+      check(parts.size >= 2 && parts.all { it.toIntOrNull() != null }) {
+        "${target.versionProperty} must identify an exact IDE release"
+      }
+      val baseline = parts[0].takeLast(2).toInt() * 10 + parts[1].toInt()
+      check(baseline >= sinceBuild.toInt()) {
+        "${target.type} $version predates the supported platform baseline $sinceBuild"
+      }
+    }
     logger.lifecycle(
       "Compatibility policy: IntelliJ $minimumVersion+ (since build $sinceBuild), " +
         "compiled against the baseline SDK and verified through current stable $currentVersion " +
@@ -547,6 +590,16 @@ tasks.register("autocompleteInteractiveReleaseGate") {
     tasks.named("autocompleteReleaseGate"),
     tasks.named("autocompleteInstalledIdeTest"),
   )
+}
+
+tasks.register("autocompleteCrossIdeTest") {
+  group = "verification"
+  description = "Launches isolated IDEA, PyCharm, and Android Studio instances to verify the installed plugin"
+  dependsOn(installedIdeTargets.map { "autocompleteInstalled${it.taskSuffix}Test" })
+}
+
+installedIdeTargets.map { "autocompleteInstalled${it.taskSuffix}Test" }.zipWithNext().forEach { (before, after) ->
+  tasks.named(after) { mustRunAfter(before) }
 }
 
 tasks.named("signPlugin") {

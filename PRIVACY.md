@@ -1,13 +1,13 @@
 # Privacy Policy
 
-Effective July 19, 2026
+Effective September 6, 2026
 
 Claude/Codex Sub Autocomplete does not operate a developer-controlled server and does not collect
 analytics, telemetry, account credentials, prompts, source code, or completion results.
 
 ## Data processed for completions
 
-When You manually request a completion, or opt in to automatic completion, the Plugin sends a
+When automatic completion is enabled or You manually request a completion, the Plugin sends a
 bounded prompt directly through the Claude Code or Codex CLI installed on Your computer. Depending
 on Your settings and the completion location, that prompt can contain:
 
@@ -20,7 +20,7 @@ The Plugin does not send the whole repository, Git history, deleted text, or eve
 Common credential patterns are redacted before a request is sent. Provider tools, project
 inspection, file writes, and command execution are disabled for completion requests.
 
-When You explicitly type a `# request` and press Tab in IntelliJ's terminal, the Plugin
+When You explicitly type a `# request` and press Tab in Your IDE's terminal, the Plugin
 sends the bounded request, shell name, coarse operating-system family, working directory, project name, and detected project-marker
 names. It does not send terminal history, terminal output, environment variables, or project-file
 contents for that request. A returned command is inserted for Your review and is never submitted or
@@ -42,8 +42,10 @@ they do not contain source code or prompts.
 
 ## Your controls
 
-Automatic completion is off by default. Optional recent-edit, open-tab, and cross-file context are
-also off by default. Terminal command generation can be disabled independently. You can disable
+Automatic completion is enabled on first installation and uses Your selected authenticated
+subscription as You type. Existing automatic, hotkey-only, and disabled preferences are preserved. You can switch to **Off — hotkey
+only** under **Automatic typing completions** in the Plugin settings. Optional recent-edit, open-tab,
+and cross-file context remain off by default. Terminal command generation can be disabled independently. You can disable
 completions, clear in-memory state by changing settings or closing the project, sign out of a
 provider CLI, or uninstall the Plugin.
 

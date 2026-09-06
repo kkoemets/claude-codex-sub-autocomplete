@@ -13,6 +13,22 @@ import java.nio.file.Path
 internal const val TERMINAL_TRIGGER_PREFIX = "#"
 internal const val TERMINAL_OUTPUT_TOKENS = 128
 
+internal object ClassicTerminalPromptInput {
+  fun read(trackedInput: String, cursorLine: String): String? {
+    if (TerminalCommandTrigger.extract(trackedInput) != null) return trackedInput
+    // A guessed prompt can leave only a suffix after paste + navigation + typing.
+    // Match a complete prompt, never an arbitrary comment inside shell input.
+    val candidate = PROMPT_AND_REQUEST.matchEntire(cursorLine)?.groupValues?.get(1) ?: return null
+    return candidate.takeIf { TerminalCommandTrigger.extract(it) != null }
+  }
+
+  // Require a recognizable prompt. A bare '# command' may be an ordinary
+  // command at a root prompt; '> ' alone may be a shell continuation prompt.
+  private val PROMPT_AND_REQUEST = Regex(
+    "(?:\\([^\\r\\n]*\\)\\s+)?(?:\\S*[%$❯#]|\\S+@\\S+\\s+[^\\r\\n%$❯#]+\\s+[%$❯])\\s+(#.*)",
+  )
+}
+
 internal data class TerminalPromptContext(
   val description: String,
   val shell: String,

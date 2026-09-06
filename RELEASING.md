@@ -1,6 +1,6 @@
 # Releasing
 
-Releases are built, verified, signed, and published locally. This repository intentionally does not use GitHub Actions.
+Releases are built, verified, signed, and published locally.
 
 ## Prerequisites
 
@@ -32,17 +32,47 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
 
 1. Update `pluginVersion`, `currentPlatformVersion`, `CHANGELOG.md`, and the `<change-notes>` section in `plugin.xml` together. `currentPlatformVersion` must name the current stable IntelliJ release; keep `platformVersion`, `minimumPlatformVersion`, and `pluginSinceBuild` aligned with the oldest supported release.
 2. Confirm the working tree contains no internal notes, credentials, generated reports, or unrelated changes.
+   Refresh `currentPyCharmVersion` and `currentAndroidStudioVersion` alongside the
+   current IDEA target. Android Studio's download version and underlying platform
+   build differ; use the official Android Studio release list to select the target.
 3. Run the full headless contributor-safe gate:
 
    ```bash
    ./gradlew clean autocompleteReleaseGate --no-daemon
    ```
 
-4. When an interactive desktop smoke test is required, run it explicitly; it opens and controls IntelliJ:
+4. Run installed-plugin fixtures against the exact release ZIP. On a shared host,
+   use the isolated Linux display so the tests cannot take host keyboard focus:
 
    ```bash
-   ./gradlew autocompleteInstalledIdeTest --no-daemon
+   ./scripts/test-isolated-ides.sh /absolute/path/to/plugin.zip
    ```
+
+   Compatibility changes require the installed fixture checks in every maintained
+   product, including editor dismissal/acceptance and terminal insertion without
+   execution. The isolated command runs all three. It preserves its source snapshot,
+   artifact identity, environment, and reports under `out/isolated-ide-tests/`.
+
+   Linux results do not establish macOS or Windows native input behavior. For those
+   operating systems, use a separate graphical test machine or VM. The native task
+   below opens windows and takes focus on the machine where it runs:
+
+   ```bash
+   ./gradlew autocompleteCrossIdeTest --no-daemon
+   ```
+
+   Inspect each product's settings, status widget, and suggestion rendering at the
+   target viewport, including loading and completed states. Record the exact IDE
+   builds and distinguish fixture checks from live provider coverage.
+
+   Each installed-product run must also pass the runtime log gate after IDE
+   shutdown. It rejects plugin-attributed ERROR/SEVERE/FATAL records and saved
+   error stacktraces, including threading assertions that do not fail functional
+   checks. Missing logs fail verification. Report unrelated IDE errors separately;
+   a green JUnit behavior check alone does not establish a clean plugin runtime.
+
+   Preserve the tested ZIP, JUnit XML, runtime logs, and selected screenshots
+   outside `build/` before a clean rebuild. Record the installed artifact hash.
 
    This uses a fixture provider and verifies IDE integration only. Verify real
    subscription suggestions separately with both authenticated providers:
@@ -72,7 +102,8 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    passing result for the default model.
 
    When no Claude subscription is available, validate its integration with
-   `./gradlew claudeCliCompatibilitySmoke autocompleteInteractiveReleaseGate --no-daemon`.
+   `./gradlew claudeCliCompatibilitySmoke autocompleteReleaseGate --no-daemon`
+   and the isolated fixture command above.
    Record Claude model quality as untested because no subscription was available.
    This checks the real CLI contract, subprocess failure handling, and packaged
    IDE integration with fixtures; it does not produce a passing Claude live-quality
@@ -93,6 +124,10 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    unzip -l build/distributions/*-signed.zip
    shasum -a 256 build/distributions/*-signed.zip
    ```
+
+   Compare every signed ZIP payload file with the unsigned ZIP and the plugin
+   files installed in each passing runtime fixture. If any payload differs,
+   rerun the affected runtime checks before distributing the signed build.
 
 ## Publish
 

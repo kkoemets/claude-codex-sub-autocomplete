@@ -10,19 +10,22 @@ import com.kkoemets.subscriptionautocomplete.completion.FailureNotifier
 import com.kkoemets.subscriptionautocomplete.diagnostics.DiagnosticsLog
 import com.kkoemets.subscriptionautocomplete.provider.BackendRegistry
 import com.kkoemets.subscriptionautocomplete.provider.BackendResult
+import com.kkoemets.subscriptionautocomplete.provider.CompletionBackend
+import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.terminal.frontend.view.TerminalView
 import com.intellij.terminal.ui.TerminalWidget
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
-import org.jetbrains.plugins.terminal.view.shellIntegration.TerminalCommandBlock
-import org.jetbrains.plugins.terminal.view.shellIntegration.TerminalOutputStatus
-import org.jetbrains.plugins.terminal.view.shellIntegration.getTypedCommandText
 
 @Suppress("UnstableApiUsage")
 @Service(Service.Level.PROJECT)
@@ -30,53 +33,162 @@ class TerminalCompletionService(
   private val project: Project,
   private val coroutineScope: CoroutineScope,
 ) {
-  private val running = AtomicBoolean()
+  private val pending = AtomicReference<PendingTerminalRequest?>()
+  private val inputRevision = AtomicLong()
 
-  fun request(terminal: TerminalView) {
+  fun canRequest(terminal: TerminalView): Boolean = ReworkedTerminalCompletionTarget.readInput(terminal) != null
+
+  fun canRequest(terminal: TerminalWidget): Boolean = ClassicTerminalCompletionTarget.readInput(terminal) != null
+
+  fun request(terminal: TerminalView): Boolean =
+    request(ReworkedTerminalCompletionTarget(terminal, inputRevision, project.name, project.basePath))
+
+  fun request(terminal: TerminalWidget, forwardTabIfBusy: Boolean = false): Boolean =
     request(
-      capture = { capture(terminal) },
-      sendText = { terminal.sendText(it) },
+      ClassicTerminalCompletionTarget(terminal, inputRevision, project.name, project.basePath),
+      forwardTabIfBusy,
     )
-  }
 
-  fun request(terminal: TerminalWidget) {
-    request(
-      capture = { capture(terminal) },
-      sendText = { sendText(terminal, it) },
-    )
-  }
-
-  private fun request(
-    capture: () -> TerminalCommandCapture?,
-    sendText: (String) -> Unit,
-  ) {
-    val settings = AutocompleteSettings.getInstance().snapshot()
-    if (!settings.enabled || !settings.terminalCompletionsEnabled || !running.compareAndSet(false, true)) {
-      sendText("\t")
-      return
-    }
-    val captured = capture()
-    if (captured == null) {
-      running.set(false)
-      sendText("\t")
-      return
-    }
-    coroutineScope.launch {
-      try {
-        generate(captured, capture, sendText, settings)
-      } finally {
-        running.set(false)
+  /** Called before native input can submit or change the command, even if the echo is delayed. */
+  internal fun inputChanged() {
+    pending.get()?.let { request ->
+      if (request.probing) {
+        debug { "inputChanged cancels probe target=${request.target.debugIdentity()} tabs=${request.tabs} input=${request.input.debugSummary()}" }
+        // Queue provisional native Tabs before the later key reaches the terminal input queue.
+        request.forwardTabs()
+        request.cancelled = true
       }
     }
+    inputRevision.incrementAndGet()
   }
 
-  fun isRunning(): Boolean = running.get()
+  internal fun request(
+    target: TerminalCompletionTarget,
+    forwardTabIfBusy: Boolean = false,
+    backend: (ProviderKind) -> CompletionBackend = BackendRegistry::forProvider,
+  ): Boolean {
+    debug { "request entered target=${target.debugIdentity()} forwardTabIfBusy=$forwardTabIfBusy" }
+    val settings = AutocompleteSettings.getInstance().snapshot()
+    if (!settings.enabled || !settings.terminalCompletionsEnabled) {
+      debug { "request rejected settings enabled=${settings.enabled} terminalEnabled=${settings.terminalCompletionsEnabled}" }
+      return false
+    }
+    val changes = target.watchChanges()
+    val captured = target.captureInput()
+    debug { "request capture target=${target.debugIdentity()} input=${captured.debugSummary()}" }
+    if (captured == null) { changes.close(); return false }
+    val request = PendingTerminalRequest(target, captured, if (forwardTabIfBusy) 1 else 0)
+    if (!pending.compareAndSet(null, request)) {
+      changes.close()
+      val existing = pending.get()
+      if (existing == null) {
+        debug { "request repeat rejected pending request already cleared" }
+        return false
+      }
+      // Model revisions belong to each target's listener; compare using the original target.
+      if (existing.cancelled || existing.target.identity !== target.identity) {
+        debug { "request repeat rejected cancelled=${existing.cancelled} existingTarget=${existing.target.debugIdentity()} target=${target.debugIdentity()}" }
+        return false
+      }
+      val existingCurrent = existing.target.captureInput()
+      if (existingCurrent != existing.input) {
+        debug { "request repeat rejected changed input expected=${existing.input.debugSummary()} current=${existingCurrent.debugSummary()}" }
+        return false
+      }
+      // Repeats during the process probe remain native input if that probe finds a running program.
+      if (existing.probing && forwardTabIfBusy) existing.tabs++
+      debug { "request repeat accepted target=${existing.target.debugIdentity()} probing=${existing.probing} tabs=${existing.tabs}" }
+      return true
+    }
+    debug { "request accepted target=${target.debugIdentity()} input=${captured.debugSummary()}" }
+    // No process probe, cwd lookup, or filesystem collection may inherit EDT/read access.
+    val job = coroutineScope.launch(Dispatchers.IO) {
+      try {
+        debug { "probe started target=${target.debugIdentity()}" }
+        val busy = target.isCommandRunning()
+        debug { "probe finished target=${target.debugIdentity()} busy=$busy" }
+        val eligible = withContext(Dispatchers.EDT) {
+          if (request.cancelled || project.isDisposed) {
+            debug { "postprobe rejected target=${target.debugIdentity()} cancelled=${request.cancelled} disposed=${project.isDisposed}" }
+            false
+          }
+          else if (busy) {
+            request.probing = false
+            request.cancelled = true
+            debug { "postprobe rejected busy target=${target.debugIdentity()} forwardingTabs=${request.tabs}" }
+            request.forwardTabs()
+            false
+          } else {
+            request.probing = false
+            request.tabs = 0
+            val current = target.captureInput()
+            debug { "postprobe capture target=${target.debugIdentity()} matches=${current == captured} expected=${captured.debugSummary()} current=${current.debugSummary()}" }
+            current == captured
+          }
+        }
+        if (!eligible) return@launch
+        debug { "context collection started target=${target.debugIdentity()}" }
+        val context = target.collectContext(captured)
+        debug { "context collection finished target=${target.debugIdentity()}" }
+        val current = withContext(Dispatchers.EDT) {
+          if (project.isDisposed) {
+            debug { "postcontext rejected disposed target=${target.debugIdentity()}" }
+            false
+          } else {
+            val latest = target.captureInput()
+            debug { "postcontext capture target=${target.debugIdentity()} matches=${latest == captured} expected=${captured.debugSummary()} current=${latest.debugSummary()}" }
+            latest == captured
+          }
+        }
+        if (current) {
+          debug { "preparation handing off to generation target=${target.debugIdentity()}" }
+          generate(captured, context, target, settings, backend)
+        }
+      } catch (cancelled: CancellationException) {
+        debug { "preparation cancelled target=${target.debugIdentity()}" }
+        throw cancelled
+      } catch (error: Exception) {
+        debug { "preparation failed target=${target.debugIdentity()} errorClass=${error.javaClass.name}" }
+        withContext(Dispatchers.EDT) {
+          if (!project.isDisposed && request.probing && !request.cancelled) {
+            request.probing = false
+            request.cancelled = true
+            request.forwardTabs()
+          }
+        }
+        DiagnosticsLog.getInstance().error("Terminal request preparation failed", "${error.javaClass.name}: ${error.message.orEmpty()}")
+      }
+    }
+    // Also detach if project disposal cancels the coroutine before its body starts.
+    job.invokeOnCompletion {
+      try { changes.close() } finally { pending.compareAndSet(request, null) }
+    }
+    return true
+  }
+
+  fun isRunning(): Boolean = pending.get() != null
+
+  /** Mutable fields are confined to EDT; the active reference is cleared on coroutine completion. */
+  private class PendingTerminalRequest(
+    val target: TerminalCompletionTarget,
+    val input: TerminalCommandInput,
+    var tabs: Int,
+    var probing: Boolean = true,
+    var cancelled: Boolean = false,
+  ) {
+    fun forwardTabs() {
+      val count = tabs
+      tabs = 0
+      if (count > 0) target.forwardTabs(input, count)
+    }
+  }
 
   private suspend fun generate(
-    captured: TerminalCommandCapture,
-    capture: () -> TerminalCommandCapture?,
-    sendText: (String) -> Unit,
+    captured: TerminalCommandInput,
+    context: TerminalPromptContext,
+    target: TerminalCompletionTarget,
     settings: AutocompleteSettings.SettingsState,
+    backend: (ProviderKind) -> CompletionBackend,
   ) {
     val runtime = CompletionRuntimeState.getInstance(project)
     val diagnostics = DiagnosticsLog.getInstance()
@@ -86,15 +198,15 @@ class TerminalCompletionService(
     observe(runtime, requestId, CompletionPipelineStage.TRIGGERED, startedAt, provider)
     diagnostics.info(
       "Terminal command #$requestId started",
-      "Provider: ${provider.displayName}; shell: ${captured.shell}; " +
-        "project markers: ${captured.context.projectMarkers.size}",
+      "Provider: ${provider.displayName}; shell: ${context.shell}; " +
+        "project markers: ${context.projectMarkers.size}",
     )
     try {
       observe(runtime, requestId, CompletionPipelineStage.CONTEXT_READY, startedAt, provider)
-      val prompt = TerminalCommandPromptBuilder.build(captured.context)
+      val prompt = TerminalCommandPromptBuilder.build(context)
       val requestSettings = settings.copy(maxOutputTokens = minOf(settings.maxOutputTokens, TERMINAL_OUTPUT_TOKENS))
       observe(runtime, requestId, CompletionPipelineStage.BACKEND_STARTED, startedAt, provider)
-      when (val result = BackendRegistry.forProvider(provider).complete(prompt, requestSettings)) {
+      when (val result = backend(provider).complete(prompt, requestSettings)) {
         is BackendResult.Failure -> {
           observe(runtime, requestId, CompletionPipelineStage.BACKEND_FINISHED, startedAt, provider)
           diagnostics.warning(
@@ -131,15 +243,21 @@ class TerminalCompletionService(
             return
           }
           observe(runtime, requestId, CompletionPipelineStage.VALIDATED, startedAt, provider)
-          val latestSettings = AutocompleteSettings.getInstance().snapshot()
-          if (
-            !latestSettings.enabled ||
-            !latestSettings.terminalCompletionsEnabled ||
-            latestSettings.settingsRevision != settings.settingsRevision
-          ) {
+          val commandRunning = withContext(Dispatchers.IO) { target.isCommandRunning() }
+          val inserted = !commandRunning && withContext(Dispatchers.EDT) {
+            val latestSettings = AutocompleteSettings.getInstance().snapshot()
+            if (project.isDisposed || !latestSettings.enabled || !latestSettings.terminalCompletionsEnabled ||
+              latestSettings.settingsRevision != settings.settingsRevision
+            ) {
+              false
+            } else {
+              target.sendIfCurrent(captured, "\u0015$command")
+            }
+          }
+          if (!inserted) {
             diagnostics.info(
               "Terminal command #$requestId discarded",
-              "Plugin settings changed before the provider returned; the typed request was preserved.",
+              "Settings, terminal focus, shell state, or input changed before the provider returned.",
             )
             observe(
               runtime,
@@ -151,23 +269,6 @@ class TerminalCompletionService(
             )
             return
           }
-          val current = capture()
-          if (current?.typedCommand != captured.typedCommand) {
-            diagnostics.info(
-              "Terminal command #$requestId discarded",
-              "The terminal input changed before the provider returned; the typed request was preserved.",
-            )
-            observe(
-              runtime,
-              requestId,
-              CompletionPipelineStage.STALE_REJECTED,
-              startedAt,
-              provider,
-              CompletionTerminalReason.STALE,
-            )
-            return
-          }
-          sendText("\u0015$command")
           diagnostics.info(
             "Terminal command #$requestId inserted",
             "${elapsedMillis(startedAt)} ms; model: ${result.model}; transport: " +
@@ -198,32 +299,6 @@ class TerminalCompletionService(
     }
   }
 
-  @OptIn(ExperimentalCoroutinesApi::class)
-  private fun capture(terminal: TerminalView): TerminalCommandCapture? {
-    val integration = terminal.shellIntegrationDeferred.completedOrNull()
-    val typedCommand = integration
-      ?.takeIf { it.outputStatus.value is TerminalOutputStatus.TypingCommand }
-      ?.blocksModel
-      ?.activeBlock
-      ?.let { it as? TerminalCommandBlock }
-      ?.let { block -> runCatching { block.getTypedCommandText(terminal.outputModels.regular) }.getOrNull() }
-    val directDescription = typedCommand?.let { TerminalCommandTrigger.extract(it) }
-    val renderedLine = if (directDescription == null) currentRenderedLine(terminal) else null
-    val description = directDescription
-      ?: renderedLine?.let { TerminalCommandTrigger.extractFromRenderedLine(it) }
-      ?: return null
-    val capturedLine = typedCommand.takeIf { directDescription != null } ?: renderedLine ?: return null
-    val startupOptions = terminal.startupOptionsDeferred.completedOrNull()
-    val context = TerminalProjectContextCollector.collect(
-      description = description,
-      shellCommand = startupOptions?.shellCommand.orEmpty(),
-      currentDirectory = TerminalWorkingDirectory.resolve(terminal),
-      projectName = project.name,
-      projectBasePath = project.basePath,
-    )
-    return TerminalCommandCapture(capturedLine, context.shell, context)
-  }
-
   /**
    * IntelliJ 262 replaces TerminalView.getCurrentDirectory() with workingDirectoryFlow.
    * Resolve both shapes without a binary reference to either method so one artifact can
@@ -244,58 +319,6 @@ class TerminalCompletionService(
         method.name == name && method.parameterCount == 0
       }?.invoke(target)
     }.getOrNull()
-  }
-
-  private fun capture(terminal: TerminalWidget): TerminalCommandCapture? {
-    val renderedLine = runCatching { TerminalRenderedText.currentLine(terminal.getText()) }.getOrNull() ?: return null
-    val description = TerminalCommandTrigger.extractFromRenderedLine(renderedLine) ?: return null
-    val context = TerminalProjectContextCollector.collect(
-      description = description,
-      shellCommand = runCatching { terminal.shellCommand?.toList().orEmpty() }.getOrElse { emptyList() },
-      currentDirectory = runCatching<String?> { terminal.getCurrentDirectory() }.getOrNull(),
-      projectName = project.name,
-      projectBasePath = project.basePath,
-    )
-    return TerminalCommandCapture(renderedLine, context.shell, context)
-  }
-
-  private fun sendText(terminal: TerminalWidget, text: String) {
-    runCatching {
-      terminal.ttyConnectorAccessor.executeWithTtyConnector { connector ->
-        runCatching { connector.write(text) }
-          .onFailure { error ->
-            DiagnosticsLog.getInstance().warning(
-              "Terminal input forwarding failed",
-              "${error.javaClass.simpleName}: ${error.message.orEmpty()}",
-            )
-          }
-      }
-    }.onFailure { error ->
-      DiagnosticsLog.getInstance().warning(
-        "Terminal input forwarding failed",
-        "${error.javaClass.simpleName}: ${error.message.orEmpty()}",
-      )
-    }
-  }
-
-  private fun currentRenderedLine(terminal: TerminalView): String? {
-    val models = listOf(terminal.outputModels.active.value, terminal.outputModels.regular).distinct()
-    return models.firstNotNullOfOrNull { model ->
-      runCatching {
-        val snapshot = model.takeSnapshot()
-        if (snapshot.lineCount == 0) return@runCatching null
-        var lineIndex = snapshot.lastLineIndex
-        repeat(minOf(snapshot.lineCount, MAX_RENDERED_LINES_TO_SCAN)) { offset ->
-          val line = snapshot.getText(
-            snapshot.getStartOfLine(lineIndex),
-            snapshot.getEndOfLine(lineIndex, true),
-          ).toString().trimEnd()
-          if (line.isNotBlank()) return@runCatching line
-          if (offset + 1 < snapshot.lineCount) lineIndex = lineIndex.minus(1)
-        }
-        null
-      }.getOrNull()
-    }
   }
 
   private fun observe(
@@ -328,18 +351,19 @@ class TerminalCompletionService(
 
   private fun elapsedMillis(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000
 
-  @OptIn(ExperimentalCoroutinesApi::class)
-  private fun <T> kotlinx.coroutines.Deferred<T>.completedOrNull(): T? =
-    if (!isCompleted || isCancelled) null else runCatching { getCompleted() }.getOrNull()
+  private inline fun debug(message: () -> String) {
+    if (LOG.isDebugEnabled) LOG.debug(message())
+  }
 
-  private data class TerminalCommandCapture(
-    val typedCommand: String,
-    val shell: String,
-    val context: TerminalPromptContext,
-  )
+  private fun TerminalCompletionTarget.debugIdentity(): String =
+    "${javaClass.simpleName}@${System.identityHashCode(identity).toString(16)}"
+
+  private fun TerminalCommandInput?.debugSummary(): String =
+    if (this == null) "absent"
+    else "present(textLength=${text.length}, descriptionLength=${description.length}, revision=$revision, modelRevision=$modelRevision)"
 
   companion object {
-    private const val MAX_RENDERED_LINES_TO_SCAN = 40
+    private val LOG = Logger.getInstance(TerminalCompletionService::class.java)
 
     fun getInstance(project: Project): TerminalCompletionService = project.getService(TerminalCompletionService::class.java)
   }

@@ -10,7 +10,7 @@ Use [GitHub private vulnerability reporting](https://github.com/kkoemets/claude-
 
 Include:
 
-- the affected plugin and IntelliJ IDEA versions;
+- the affected plugin version and IDE product, version, and build number (IntelliJ IDEA, PyCharm, or Android Studio);
 - the selected provider and authentication type, without credentials;
 - minimal reproduction steps using non-sensitive sample code;
 - the expected and observed impact; and

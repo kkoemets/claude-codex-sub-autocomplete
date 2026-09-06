@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
   <title id="title">Claude/Codex Sub Autocomplete</title>
-  <desc id="description">Native IntelliJ autocomplete from an existing Claude Code or Codex subscription.</desc>
+  <desc id="description">Native autocomplete for IntelliJ IDEA, PyCharm, and Android Studio from an existing Claude Code or Codex subscription.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#24243F"/>
@@ -21,7 +21,7 @@
   </g>
   <text x="326" y="135" fill="#FFFFFF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="54" font-weight="750">Claude/Codex</text>
   <text x="326" y="199" fill="#FFFFFF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="54" font-weight="750">Sub Autocomplete</text>
-  <text x="329" y="252" fill="#E2E2FF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="23">Native IntelliJ ghost text from subscriptions you already have.</text>
+  <text x="329" y="252" fill="#E2E2FF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="23">IntelliJ IDEA · PyCharm · Android Studio</text>
   <g transform="translate(329 280)">
     <rect width="286" height="38" rx="19" fill="#FFFFFF" opacity="0.1"/>
     <circle cx="24" cy="19" r="6" fill="#8EF0BB"/>

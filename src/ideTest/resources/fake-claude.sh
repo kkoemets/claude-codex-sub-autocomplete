@@ -7,6 +7,10 @@ fi
 
 prompt=$(cat)
 case "$prompt" in
+  *"autocomplete terminal compatibility check"*)
+    printf '%s\n' requested >> @TERMINAL_REQUEST_LOG@
+    completion=@TERMINAL_COMMAND_JSON@
+    ;;
   *"File: media-demo.ts"*) completion='urn users\n    .filter((user) => user.active)\n    .map((user) => user.name)\n    .sort((left, right) => left.localeCompare(right))\n}' ;;
   *"File: sample.ts"*) completion='install dependencies' ;;
   *"File: sample.json"*) completion=',' ;;
@@ -14,10 +18,11 @@ case "$prompt" in
   *"File: sample.py"*) completion=' = lambda value: value * 2' ;;
   *"File: sample.sh"*) completion='=production' ;;
   *"File: Sample.java"*) completion='install dependencies' ;;
-  *"File: Sample.kt"*) completion='install dependencies' ;;
+  *"File: Sample.kt"*) completion='e * 2' ;;
   *"File: docker-compose.yml"*) completion='install dependencies' ;;
   *"File: sample.sql"*) completion='install dependencies' ;;
   *"File: sample.html"*) completion='install dependencies -->' ;;
+  *"File: sample.xml"*) completion='omplete</string>' ;;
   *"File: Dockerfile"*) completion='install dependencies' ;;
   *) completion='' ;;
 esac

@@ -1,11 +1,67 @@
 package com.kkoemets.subscriptionautocomplete.settings
 
+import com.intellij.util.xmlb.SkipDefaultsSerializationFilter
+import com.intellij.util.xmlb.XmlSerializer
+import org.jdom.Element
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AutocompleteSettingsTest {
+  @Test
+  fun `first installation enables automatic subscription completion`() {
+    val settings = AutocompleteSettings()
+
+    assertTrue(settings.state.enabled)
+    assertFalse(settings.state.manualOnly)
+    assertEquals(AutomaticCompletionEngine.SELECTED_SUBSCRIPTION, settings.selectedAutomaticEngine())
+    assertFalse(settings.state.recentEditContextEnabled)
+    assertFalse(settings.state.openTabContextEnabled)
+    assertFalse(settings.state.allowCrossFileForSubscription)
+  }
+
+  @Test
+  fun `saved off settings with omitted default fields stay off`() {
+    val xml = Element("state").addContent(
+      Element("option").setAttribute("name", "settingsVersion").setAttribute("value", "6"),
+    )
+    val settings = AutocompleteSettings()
+    settings.loadState(XmlSerializer.deserialize(xml, AutocompleteSettings.SettingsState::class.java))
+
+    assertTrue(settings.state.manualOnly)
+    assertEquals(AutomaticCompletionEngine.OFF, settings.selectedAutomaticEngine())
+  }
+
+  @Test
+  fun `automatic choice survives default-skipping serialization and reload`() {
+    for (engine in listOf(AutomaticCompletionEngine.OFF, AutomaticCompletionEngine.SELECTED_SUBSCRIPTION)) {
+      val original = AutocompleteSettings()
+      original.update { it.automaticEngine = engine.name }
+      val xml = XmlSerializer.serialize(original.state, SkipDefaultsSerializationFilter())
+      if (engine == AutomaticCompletionEngine.OFF) {
+        assertFalse(xml.getChildren("option").any { it.getAttributeValue("name") == "automaticEngine" })
+      }
+      val reloaded = AutocompleteSettings()
+      reloaded.loadState(XmlSerializer.deserialize(xml, AutocompleteSettings.SettingsState::class.java))
+
+      assertEquals(engine, reloaded.selectedAutomaticEngine())
+      assertEquals(engine == AutomaticCompletionEngine.OFF, reloaded.state.manualOnly)
+    }
+  }
+
+  @Test
+  fun `disabled plugin remains disabled after serialization and reload`() {
+    val original = AutocompleteSettings()
+    original.update { it.enabled = false }
+    val xml = XmlSerializer.serialize(original.state, SkipDefaultsSerializationFilter())
+    val reloaded = AutocompleteSettings()
+    reloaded.loadState(XmlSerializer.deserialize(xml, AutocompleteSettings.SettingsState::class.java))
+
+    assertFalse(reloaded.state.enabled)
+    assertEquals(AutomaticCompletionEngine.SELECTED_SUBSCRIPTION, reloaded.selectedAutomaticEngine())
+  }
+
   @Test
   fun `new settings use the pinned Luna low pair by default`() {
     val state = AutocompleteSettings.SettingsState()

@@ -2,7 +2,7 @@
 
 ## Before asking for help
 
-1. Confirm you are using IntelliJ IDEA 2025.3 or newer and the latest plugin release.
+1. Confirm you are using IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4), with a compatible plugin version. PyCharm and Android Studio support starts with 0.6.4; see the [compatibility record](docs/compatibility.md) for prepared artifacts and tested builds.
 2. Run `claude auth status` or `codex login status` in a terminal.
 3. Open the plugin's status-bar menu and run **Connection Tests and Diagnostics**.
 4. Retry with manual completion using `Alt+\`.
@@ -22,4 +22,4 @@ opens.
 
 ## Safe diagnostics
 
-Share IntelliJ IDEA version, plugin version, provider, configured model, timing, status, and redacted error text. Never share source code, prompts, tokens, CLI configuration files, authentication output, private file paths, or complete IDE logs.
+Share the IDE product (IntelliJ IDEA, PyCharm, or Android Studio), its version and build number, plugin version, provider, configured model, timing, status, and redacted error text. Never share source code, prompts, tokens, CLI configuration files, authentication output, private file paths, or complete IDE logs.

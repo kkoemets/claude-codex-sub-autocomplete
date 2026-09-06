@@ -76,7 +76,14 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
         .getOrDefault(SyntaxValidationMode.SHADOW)
   }
 
-  private var currentState = SettingsState(settingsVersion = CURRENT_SETTINGS_VERSION)
+  // Keep the serialized bean defaults above unchanged: older settings files omit
+  // default OFF/manual-only values. Only an installation without saved state
+  // starts with automatic subscription completion enabled.
+  private var currentState = SettingsState(
+    settingsVersion = CURRENT_SETTINGS_VERSION,
+    manualOnly = false,
+    automaticEngine = AutomaticCompletionEngine.SELECTED_SUBSCRIPTION.name,
+  )
 
   override fun getState(): SettingsState = currentState
 

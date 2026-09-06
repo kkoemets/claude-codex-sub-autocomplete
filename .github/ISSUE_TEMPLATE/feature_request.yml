@@ -22,7 +22,7 @@ body:
     id: tradeoffs
     attributes:
       label: Context and tradeoffs
-      description: Note provider, latency, privacy, context-budget, or IntelliJ compatibility implications.
+      description: Note provider, latency, privacy, context-budget, or IDE compatibility implications (IntelliJ IDEA, PyCharm, or Android Studio).
   - type: checkboxes
     id: boundaries
     attributes:

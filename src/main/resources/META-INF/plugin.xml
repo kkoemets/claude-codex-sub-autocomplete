@@ -5,21 +5,22 @@
   <category>AI</category>
 
   <description><![CDATA[
-    <p>Native IntelliJ autocomplete using the Claude Code or Codex subscription you already
+    <p>Native autocomplete for IntelliJ IDEA, PyCharm, and Android Studio using the Claude Code or Codex subscription you already
     have&mdash;no API keys or separate autocomplete plan.</p>
     <ul>
       <li>Switch explicitly between Claude Code and Codex and select a subscription model.</li>
       <li>Generate expressions, multiline blocks, and comment-directed implementations as native ghost text.</li>
-      <li>Turn a <code># request</code> into a reviewable shell command with Tab in IntelliJ's terminal.</li>
+      <li>Turn a <code># request</code> into a reviewable shell command with Tab in your IDE's terminal.</li>
       <li>Use bounded language-aware editor context, with recent-edit, open-tab, and cross-file sources separately opt-in.</li>
       <li>Inspect connection state, request progress, safe errors, and latency from the status bar and diagnostics window.</li>
-      <li>Use manual completion by default or opt into automatic requests.</li>
+      <li>Get automatic completions on first installation, or switch to hotkey-only mode in settings.</li>
     </ul>
     <p>Requests go directly through the selected provider's installed CLI. The plugin does not operate
     a proxy or telemetry service. Provider tools, project inspection, file writes, and command execution
     are disabled. Terminal commands are inserted but never executed. Common credential patterns are redacted
     before requests are sent.</p>
-    <p><b>Requirements:</b> IntelliJ IDEA Community or Ultimate 2025.3 or newer, Java 21, and an installed and authenticated
+    <p><b>Requirements:</b> IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4),
+    the bundled Terminal plugin, Java 21 or newer, and an installed and authenticated
     Claude Code or Codex CLI.</p>
     <p>Claude Code and Codex use agent models rather than purpose-built fill-in-the-middle models.
     Uncached suggestions can take several seconds, and quality depends on the selected model and context.</p>
@@ -27,17 +28,20 @@
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>0.6.3 — Early Access</h3>
+    <h3>0.6.4 — Early Access</h3>
     <ul>
-      <li>Adds verified compatibility with IntelliJ IDEA 2026.2.1.</li>
-      <li>Verifies the oldest supported, current stable, and recommended forward IDE builds before release.</li>
-      <li>Removes a deprecated terminal API dependency through a cross-version compatibility adapter.</li>
+      <li>Enables automatic subscription completion on first installation and preserves existing saved settings.</li>
+      <li>Keeps terminal process and filesystem checks off the UI thread and rejects stale responses after terminal changes.</li>
+      <li>Supports IntelliJ IDEA, PyCharm, and Android Studio with one plugin ZIP, including IntelliJ IDEA 2026.2.2.</li>
+      <li>Handles terminal completion before native Tab input and preserves normal Tab behavior in search fields and running programs.</li>
+      <li>Requires focused editable shell input and rechecks terminal state before inserting a generated command for review.</li>
+      <li>Rejects incomplete Claude process output and improves cancellation, timeout, and CLI error handling.</li>
+      <li>Uses GPT-5.6 Luna with low reasoning by default and reliably routes manual editor completions to the selected provider.</li>
     </ul>
   ]]></change-notes>
 
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
-  <depends>com.intellij.modules.idea</depends>
   <depends>org.jetbrains.plugins.terminal</depends>
 
   <extensions defaultExtensionNs="com.intellij">

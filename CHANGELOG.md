@@ -2,8 +2,14 @@
 
 All notable user-facing changes are documented here.
 
-## Unreleased
+## 0.6.4 — Early Access
 
+- Enable automatic completion from the selected subscription on first installation while preserving saved automatic/manual and disabled settings.
+- Keep terminal process and filesystem checks off the UI thread, preserve native Tab ordering, and reject stale responses after terminal input or output changes. Installed-IDE checks now fail on plugin-related runtime errors.
+- Add PyCharm and Android Studio compatibility using the same plugin ZIP, with explicit Plugin Verifier targets and installed-IDE checks for editor suggestions and terminal command review.
+- Route physical Tab requests through the focused Reworked terminal view, including newer terminals that do not register a Classic widget.
+- Handle terminal requests before native key dispatch, preserving ordinary Tab and search navigation. Reworked generation requires focused editable shell input and rejects running programs and alternate screens, including when a provider response arrives.
+- Strengthen installed terminal checks with absolute execution sentinels, editable-input and deliberate-Enter controls, single-Tab child-process probes, and repetition-aware timeouts.
 - Reject partial Claude output when its process fails, preserve structured CLI error details, and stop child processes on cancellation, timeout, or output overflow.
 - Add subprocess integration checks and an installed Claude CLI compatibility check that needs no active subscription.
 - Set GPT-5.6 Luna with low reasoning as the default Codex profile and the pinned live-test profile.
