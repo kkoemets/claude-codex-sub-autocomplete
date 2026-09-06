@@ -11,14 +11,22 @@ shift
 [[ -f "$plugin_zip" && "$plugin_zip" == *.zip ]] || { echo 'Expected an existing plugin ZIP.' >&2; exit 2; }
 test_uid=$(id -u)
 [[ "$test_uid" -ne 0 ]] || { echo 'Run this script as a normal user.' >&2; exit 2; }
+test_platform=${IDE_TEST_PLATFORM:-linux/amd64}
+case "$test_platform" in
+  linux/amd64|linux/arm64) ;;
+  *) echo 'IDE_TEST_PLATFORM must be linux/amd64 or linux/arm64.' >&2; exit 2 ;;
+esac
+test_arch=${test_platform#linux/}
 docker info >/dev/null
 
 output_root="$repo_root/out/isolated-ide-tests"
-mkdir -p "$output_root/gradle-cache"
+cache_dir="$output_root/gradle-cache/$test_arch"
+mkdir -p "$cache_dir"
 run_dir=$(mktemp -d "$output_root/run-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
 container_name="subscription-autocomplete-ide-$(date -u +%Y%m%d%H%M%S)-$$"
-image_name="subscription-autocomplete-ide-tests:local"
+image_name="subscription-autocomplete-ide-tests:$test_arch"
 echo "Reports and source snapshot: $run_dir"
+echo "Isolated platform: $test_platform"
 
 # Copy only repository files, including current edits. Keep the original checkout,
 # credentials, and host display out of the container.
@@ -64,24 +72,29 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-docker build --platform linux/amd64 --build-arg "TEST_UID=$test_uid" \
+docker build --platform "$test_platform" --build-arg "TEST_UID=$test_uid" \
   --iidfile "$run_dir/image-id.txt" -t "$image_name" \
   "$run_dir/work/scripts/ide-tests" 2>&1 | tee "$run_dir/image-build.log"
 image_id=$(cat "$run_dir/image-id.txt")
 docker image inspect "$image_id" > "$run_dir/image.json"
 
 if [[ $# -eq 0 ]]; then
-  set -- autocompleteCrossIdeTest
+  if [[ "$test_arch" == arm64 ]]; then
+    # Android Studio's Linux distribution requires x86-64.
+    set -- autocompleteInstalledIdeTest autocompleteInstalledPyCharmTest
+  else
+    set -- autocompleteCrossIdeTest
+  fi
 fi
-docker create --init --name "$container_name" --platform linux/amd64 \
+docker create --init --name "$container_name" --platform "$test_platform" \
   --cpus=6 --memory=8g --shm-size=2g \
   --mount "type=bind,src=$run_dir/work,dst=/work" \
   --mount "type=bind,src=$run_dir/artifact,dst=/artifact,readonly" \
-  --mount "type=bind,src=$output_root/gradle-cache,dst=/home/tester/.gradle" \
+  --mount "type=bind,src=$cache_dir,dst=/home/tester/.gradle" \
   "$image_id" xvfb-run --auto-servernum \
   --server-args='-screen 0 1920x1080x24 -ac -nolisten tcp' \
   dbus-run-session -- bash scripts/ide-tests/run-inside.sh \
-  "$@" -PideTestPluginPath=/artifact/plugin.zip -PideTestRepetitions=1 \
+  "$@" -PideTestPluginPath=/artifact/plugin.zip -PideTestRepetitions=1 -PrequirePhysicalTyping=true \
   --no-daemon --no-parallel --no-watch-fs --continue > "$run_dir/container-id.txt"
 docker inspect "$container_name" > "$run_dir/container.json"
 set +e

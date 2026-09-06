@@ -2,8 +2,13 @@
 
 All notable user-facing changes are documented here.
 
-## Unreleased
+## 0.6.5 — Early Access
 
+- Require an IDE restart for plugin installation, updates, and removal, avoiding the platform's unsafe dynamic reload path.
+- Remove terminal callbacks when the plugin unloads, preventing old settings classes from handling Tab after reinstalling without an IDE restart.
+- Cancel diagnostics work and queued related-edit callbacks, and close plugin dialogs, when the plugin unloads.
+- Strengthen release checks for installer restarts, physical keyboard input, saved settings, and IDE runtime errors.
+- Keep settings descriptions and executable fields within the available dialog width.
 - Replace the deprecated Classic-terminal input getter while preserving queued input, session-change rejection, and native Tab ordering.
 - Prevent unavailable working-directory flow values from falling back to a deprecated getter on newer terminal APIs; retain the non-deprecated older API on supported IDEs that still use it.
 - Block releases on deprecated APIs and all other verifier failure categories except the documented experimental integrations. Require the full headless gate before Gradle publication.

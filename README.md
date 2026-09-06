@@ -52,8 +52,8 @@ Claude Code and Codex are excellent at understanding code, but their agent inter
 
 ## Requirements
 
-Version 0.6.4 supports IntelliJ IDEA, PyCharm, and Android Studio with one signed ZIP.
-See [compatibility and validation](docs/compatibility.md) for verified builds and coverage.
+One signed ZIP supports IntelliJ IDEA, PyCharm, and Android Studio.
+See [IDE compatibility](docs/compatibility.md) for supported versions and update requirements.
 
 - IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4).
 - The IDE's bundled Java runtime (Java 21 or newer).
@@ -78,9 +78,9 @@ API-key authentication is intentionally rejected. A connection test reports when
 
 ## Install in 60 seconds
 
-1. Download the signed ZIP from [release 0.6.4](https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/tag/v0.6.4). See [compatibility and artifact checksums](docs/compatibility.md) for verification details.
+1. Download the signed ZIP from [release 0.6.5](https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/tag/v0.6.5).
 2. Open **Settings → Plugins → gear icon → Install Plugin from Disk**.
-3. Select the ZIP and restart your IDE if requested.
+3. Select the ZIP and restart your IDE.
 4. Open **Settings → Tools → Claude/Codex Sub Autocomplete**.
 5. Select Claude or Codex, choose a model, and run **Connection Tests and Diagnostics**.
 6. Start typing in an editor for automatic suggestions, or press <kbd>Alt</kbd>+<kbd>\</kbd> to request a completion manually.
@@ -91,7 +91,7 @@ One ZIP serves all supported IDEs. Android Studio uses its own release numbering
 compatibility follows its underlying IntelliJ Platform build. The plugin requires
 build 253 or newer, but older Android Studio releases are not part of the maintained
 test matrix. Language context uses the parsers available in your IDE.
-See the [compatibility record](docs/compatibility.md) for exact builds and validation coverage.
+See [IDE compatibility](docs/compatibility.md) for supported versions and update requirements.
 
 Codex defaults to `gpt-5.6-luna` with `low` reasoning. Explicitly stored model and reasoning selections are retained. Configurations that omitted the previous default model use the new default.
 

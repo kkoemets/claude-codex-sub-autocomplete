@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin require-restart="true">
   <id>com.kkoemets.subscriptionautocomplete</id>
   <name>Claude/Codex Sub Autocomplete</name>
   <vendor url="https://github.com/kkoemets/claude-codex-sub-autocomplete">Kristjan Koemets</vendor>
@@ -22,21 +22,21 @@
     <p><b>Requirements:</b> IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4),
     the bundled Terminal plugin, Java 21 or newer, and an installed and authenticated
     Claude Code or Codex CLI.</p>
+    <p>Plugin installation, updates, and removal require an IDE restart.</p>
     <p>Claude Code and Codex use agent models rather than purpose-built fill-in-the-middle models.
     Uncached suggestions can take several seconds, and quality depends on the selected model and context.</p>
     <p>This is an independent project and is not affiliated with Anthropic, OpenAI, or JetBrains.</p>
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>0.6.4 — Early Access</h3>
+    <h3>0.6.5 — Early Access</h3>
     <ul>
-      <li>Enables automatic subscription completion on first installation and preserves existing saved settings.</li>
-      <li>Keeps terminal process and filesystem checks off the UI thread and rejects stale responses after terminal changes.</li>
-      <li>Supports IntelliJ IDEA, PyCharm, and Android Studio with one plugin ZIP, including IntelliJ IDEA 2026.2.2.</li>
-      <li>Handles terminal completion before native Tab input and preserves normal Tab behavior in search fields and running programs.</li>
-      <li>Requires focused editable shell input and rechecks terminal state before inserting a generated command for review.</li>
-      <li>Rejects incomplete Claude process output and improves cancellation, timeout, and CLI error handling.</li>
-      <li>Uses GPT-5.6 Luna with low reasoning by default and reliably routes manual editor completions to the selected provider.</li>
+      <li>Requires an IDE restart for plugin installation, updates, and removal to avoid unsafe dynamic reloads.</li>
+      <li>Removes terminal callbacks, cancels pending work, and closes plugin dialogs when the plugin unloads.</li>
+      <li>Replaces deprecated terminal APIs while preserving queued input and rejecting stale completion responses.</li>
+      <li>Requires isolated installer/restart and physical keyboard checks, current artifact evidence, and clean IDE logs before publication.</li>
+      <li>Keeps settings descriptions and executable fields within the dialog width.</li>
+      <li>Preserves automatic completion on first installation and existing saved settings across updates.</li>
     </ul>
   ]]></change-notes>
 

@@ -8,8 +8,11 @@ import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -21,13 +24,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Service(Service.Level.PROJECT)
 class NextEditProposalService(
   private val project: Project,
   private val coroutineScope: CoroutineScope,
-) {
+) : Disposable {
   private val collector = NextEditContextCollector(project)
   private val running = AtomicBoolean()
   private val requestSequence = AtomicLong()
@@ -147,8 +151,8 @@ class NextEditProposalService(
           notify("No clear related edit was proposed.", NotificationType.INFORMATION)
           return
         }
-        ApplicationManager.getApplication().invokeLater({
-          if (project.isDisposed) return@invokeLater
+        coroutineScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+          if (project.isDisposed) return@launch
           val finalStaleReason = nextEditDiscardReason(
             project,
             context,
@@ -163,7 +167,7 @@ class NextEditProposalService(
               "category=$finalStaleReason; elapsedMs=${elapsedMillis(startedAt)}",
             )
             notify("The related-edit proposal was discarded because its context changed.", NotificationType.INFORMATION)
-            return@invokeLater
+            return@launch
           }
           NextEditProposalDialog(
             project,
@@ -174,7 +178,7 @@ class NextEditProposalService(
             },
             modelName = model,
           ).show()
-        }, ModalityState.any())
+        }
       }
     }
   }
@@ -195,12 +199,15 @@ class NextEditProposalService(
   }
 
   private fun updateStatusWidget() {
-    ApplicationManager.getApplication().invokeLater {
+    coroutineScope.launch(Dispatchers.EDT) {
       if (!project.isDisposed) {
         WindowManager.getInstance().getStatusBar(project)?.updateWidget("SubscriptionAutocomplete")
       }
     }
   }
+
+  // Dialog disposables and the injected scope end with the plugin, even if the project stays open.
+  override fun dispose() = Unit
 
   private fun elapsedMillis(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000
 

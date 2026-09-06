@@ -152,12 +152,24 @@ the input and acceptance paths separately; external editor typing does not estab
 physical Tab acceptance coverage.
 
 After every installed run closes the IDE, the runtime log gate scans its logs and
-saved error stacktraces. Plugin-attributed ERROR/SEVERE/FATAL entries fail the test,
-including errors logged by platform code with this plugin in the stack. Unrelated
-IDE diagnostics are reported separately. This gate also runs for terminal-only
+saved error stacktraces. Plugin errors, explicit diagnostic errors, and unknown
+platform errors fail the test. The narrowly bounded stock-IDE exception in
+[the release policy](RELEASING.md) is matched and reported separately; attribution
+alone never exempts an error. This gate also runs for terminal-only
 checks and preserves any earlier assertion failure. A missing/empty `idea.log`
 cannot pass. Headless unit tests exercise the log parser and the service's
-background process probes, EDT insertion, stale-response rejection, and Tab ordering.
+background process probes, EDT insertion, stale-response rejection, Tab ordering,
+and callback removal when the plugin service is disposed while its project remains
+open. Installed fixtures verify that the platform refuses restart-free plugin
+changes, queue the exact candidate ZIP through the IDE installer, close the IDE,
+and start a new process with the same configuration and project. Saved provider
+settings and physical terminal Tab completion must work after restart. Logs from
+both sessions must pass the strict error gate.
+
+Publication additionally requires archived full fixtures for all maintained IDEs,
+matched to the current source, build, and exact signed ZIP. See
+[RELEASING.md](RELEASING.md) for `verifyReleaseIdeEvidence` and the isolated ARM/x86
+commands. A terminal-only run cannot satisfy the publication prerequisite.
 
 Without an active Claude subscription, run:
 

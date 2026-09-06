@@ -14,6 +14,7 @@ import com.kkoemets.subscriptionautocomplete.provider.CompletionBackend
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
@@ -32,7 +33,7 @@ import kotlinx.coroutines.launch
 class TerminalCompletionService(
   private val project: Project,
   private val coroutineScope: CoroutineScope,
-) {
+) : Disposable {
   private val pending = AtomicReference<PendingTerminalRequest?>()
   private val inputRevision = AtomicLong()
 
@@ -167,6 +168,10 @@ class TerminalCompletionService(
   }
 
   fun isRunning(): Boolean = pending.get() != null
+
+  // The platform removes child terminal callbacks and cancels the injected scope
+  // when this plugin unloads, even while the project and terminal remain open.
+  override fun dispose() = Unit
 
   /** Mutable fields are confined to EDT; the active reference is cleared on coroutine completion. */
   private class PendingTerminalRequest(

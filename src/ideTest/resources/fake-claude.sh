@@ -27,4 +27,21 @@ case "$prompt" in
   *) completion='' ;;
 esac
 
+# Keep editor generation visible long enough to inspect its loading state on
+# the private test display, including the emulated Android Studio guest.
+case "$prompt" in
+  *"autocomplete terminal compatibility check"*) ;;
+  *)
+    sleep 2
+    # The first automatic editor request stays pending throughout its screenshot.
+    # Fail if the harness never releases it, within the provider's 15s timeout.
+    loading_wait=0
+    while [ -f @EDITOR_LOADING_GATE@ ]; do
+      loading_wait=$((loading_wait + 1))
+      [ "$loading_wait" -le 100 ] || exit 70
+      sleep 0.1
+    done
+    ;;
+esac
+
 printf '{"type":"result","subtype":"success","is_error":false,"result":"%s"}\n' "$completion"

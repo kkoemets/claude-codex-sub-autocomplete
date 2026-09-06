@@ -1,5 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.PublishPluginTask
+import org.jetbrains.intellij.platform.gradle.tasks.TestIdeUiTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginSignatureTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
@@ -507,6 +509,9 @@ tasks.register("verifyMarketplaceMetadata") {
     check("<vendor url=\"https://github.com/kkoemets/claude-codex-sub-autocomplete\"" in metadata)
     check("<description>" in metadata)
     check("<change-notes>" in metadata)
+    check("<idea-plugin require-restart=\"true\">" in metadata) {
+      "Plugin changes must require an IDE restart to avoid the unsafe dynamic reload path"
+    }
     check("<depends>com.intellij.modules.idea</depends>" !in metadata) {
       "IDEA-only dependencies prevent cross-product installation"
     }
@@ -620,6 +625,8 @@ tasks.named("signPlugin") {
 
 tasks.named<VerifyPluginSignatureTask>("verifyPluginSignature") {
   dependsOn(tasks.named("signPlugin"))
+  // Verify the same bytes publication will upload, including a caller-supplied archive override.
+  inputArchiveFile.set(provider { tasks.named<PublishPluginTask>("publishPlugin").get().archiveFile.get() })
   certificateChain.unset()
   certificateChain.unsetConvention()
   certificateChainFile.set(
@@ -632,8 +639,38 @@ tasks.named<VerifyPluginSignatureTask>("verifyPluginSignature") {
   }
 }
 
-tasks.named("publishPlugin") {
-  dependsOn(tasks.named("autocompleteReleaseGate"))
+tasks.register<JavaExec>("verifyReleaseIdeEvidence") {
+  group = "verification"
+  description = "Validates archived full isolated IDE runs for the exact publication ZIP; never launches an IDE"
+  dependsOn(tasks.testClasses, tasks.named("buildPlugin"))
+  mustRunAfter(tasks.named("signPlugin"), tasks.named("verifyPluginSignature"))
+  classpath = sourceSets.test.get().runtimeClasspath
+  mainClass.set("com.kkoemets.subscriptionautocomplete.ide.ReleaseEvidenceValidator")
+  // Evidence and source hashes are always checked again immediately before publication.
+  outputs.upToDateWhen { false }
+  doFirst {
+    val evidenceDirectory = providers.gradleProperty("releaseEvidenceDir").orNull
+    check(!evidenceDirectory.isNullOrBlank()) {
+      "releaseEvidenceDir is required: provide archived full IDEA, PyCharm, and Android Studio runs"
+    }
+    setArgs(listOf(
+      layout.projectDirectory.asFile.absolutePath,
+      file(evidenceDirectory).absolutePath,
+      tasks.named<PublishPluginTask>("publishPlugin").get().archiveFile.get().asFile.absolutePath,
+      tasks.named<Zip>("buildPlugin").get().archiveFile.get().asFile.absolutePath,
+    ) + installedIdeTargets.map { target ->
+      val test = tasks.named<TestIdeUiTask>("autocompleteInstalled${target.taskSuffix}Test").get()
+      "${target.type.code}=${test.productInfo.buildNumber}"
+    })
+  }
+}
+
+tasks.named<PublishPluginTask>("publishPlugin") {
+  dependsOn(
+    tasks.named("autocompleteReleaseGate"),
+    tasks.named("verifyPluginSignature"),
+    tasks.named("verifyReleaseIdeEvidence"),
+  )
   doFirst {
     check(!System.getenv("PUBLISH_TOKEN").isNullOrBlank()) {
       "PUBLISH_TOKEN is required to publish to JetBrains Marketplace"

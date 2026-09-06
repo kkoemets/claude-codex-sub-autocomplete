@@ -12,11 +12,13 @@ data class IdeRuntimeLogScan(
   val scannedFiles: List<Path>,
   val pluginErrors: List<IdeRuntimeError>,
   val unrelatedErrors: List<IdeRuntimeError>,
+  val acceptedPlatformErrors: List<IdeRuntimeError> = emptyList(),
 ) {
-  fun requireNoPluginErrors() {
-    check(pluginErrors.isEmpty()) {
-      "Installed plugin runtime errors (${pluginErrors.size} records/stacktraces):\n" +
-        pluginErrors.joinToString("\n") { it.summary() }
+  fun requireNoBlockingErrors() {
+    check(pluginErrors.isEmpty() && unrelatedErrors.isEmpty()) {
+      "Installed IDE runtime errors (${pluginErrors.size} plugin, ${unrelatedErrors.size} unrelated records/stacktraces):\n" +
+        (pluginErrors.map { "Plugin IDE error: ${it.summary()}" } +
+          unrelatedErrors.map { "Unrelated IDE error: ${it.summary()}" }).joinToString("\n")
     }
   }
 }
@@ -32,9 +34,14 @@ object InstalledIdeRuntimeLogGate {
   private val pluginBlame = Regex("Plugin to blame:\\s*Claude/Codex Sub Autocomplete\\b", RegexOption.IGNORE_CASE)
   private val abbreviatedPluginLogger = Regex("^#c\\.k\\.s\\.[\\w.$]+\\s*(?:-|:)")
   private val errorLevels = setOf("ERROR", "SEVERE", "FATAL")
+  // DiagnosticsLog deliberately uses WARN with an explicit error-level payload.
+  // Match only a leading payload label, not a quoted label later in a message.
+  private val declaredError = Regex("^(?:#[\\w.$]+\\s*(?:-|:)\\s*)?\\[(ERROR|SEVERE|FATAL)](?:\\s|$)")
+  private val jvmFatalBanner = Regex("^\\s*# A fatal error has been detected by the Java Runtime Environment:")
+  private val uncaughtException = Regex("^\\s*Exception in thread \"[^\"]+\" [\\w.$]+(?:Exception|Error)(?::|\\s|$)")
   private val logName = Regex(".*\\.log(?:\\.\\d+)?(?:\\.gz)?")
 
-  fun scan(logDirectory: Path): IdeRuntimeLogScan {
+  fun scan(logDirectory: Path, expectedIdeBuild: String? = null): IdeRuntimeLogScan {
     val mainLog = logDirectory.resolve("idea.log")
     check(Files.isRegularFile(mainLog) && Files.size(mainLog) > 0) {
       "Missing or empty installed-IDE runtime log: $mainLog"
@@ -54,7 +61,8 @@ object InstalledIdeRuntimeLogGate {
       } else errorRecords(file, text)
     }
     val (plugin, unrelated) = errors.partition { attributableToPlugin(it.text) }
-    return IdeRuntimeLogScan(files, plugin, unrelated)
+    val accepted = KnownAndroidTerminalError.acceptedRecords(mainLog, read(mainLog), expectedIdeBuild, unrelated)
+    return IdeRuntimeLogScan(files, plugin, unrelated - accepted.toSet(), accepted)
   }
 
   /**
@@ -64,6 +72,7 @@ object InstalledIdeRuntimeLogGate {
   fun <T> afterIdeShutdown(
     logDirectory: Path,
     report: (String) -> Unit = ::println,
+    expectedIdeBuild: String? = null,
     runAndClose: () -> T,
   ): T {
     var originalFailure: Throwable? = null
@@ -74,11 +83,13 @@ object InstalledIdeRuntimeLogGate {
       throw failure
     } finally {
       try {
-        val scan = scan(logDirectory)
+        val scan = scan(logDirectory, expectedIdeBuild)
         report("Installed IDE runtime log scan: ${scan.scannedFiles.size} files; " +
-          "${scan.pluginErrors.size} plugin errors; ${scan.unrelatedErrors.size} unrelated IDE errors")
+          "${scan.pluginErrors.size} plugin errors; ${scan.unrelatedErrors.size} unrelated blocking IDE errors; " +
+          "${scan.acceptedPlatformErrors.size} accepted stock-IDE records/stacktraces")
         scan.unrelatedErrors.forEach { report("Unrelated IDE error: ${it.summary()}") }
-        scan.requireNoPluginErrors()
+        scan.acceptedPlatformErrors.forEach { report("Accepted stock Android terminal error: ${it.summary()}") }
+        scan.requireNoBlockingErrors()
       } catch (logFailure: Throwable) {
         if (originalFailure == null) throw logFailure
         if (originalFailure !== logFailure) originalFailure.addSuppressed(logFailure)
@@ -117,7 +128,14 @@ object InstalledIdeRuntimeLogGate {
       val match = header.find(line)
       if (match != null) {
         finishRecord()
-        level = match.groupValues[1].ifEmpty { match.groupValues[2] }
+        val payloadError = declaredError.find(line.substring(match.range.last + 1))
+        level = payloadError?.groupValues?.get(1) ?: match.groupValues[1].ifEmpty { match.groupValues[2] }
+        firstLine = index + 1
+      } else if (jvmFatalBanner.containsMatchIn(line) || uncaughtException.containsMatchIn(line)) {
+        // Native crash reports and uncaught stderr exceptions have no logger
+        // header. Start a separate record so earlier INFO cannot supply blame.
+        finishRecord()
+        level = "FATAL"
         firstLine = index + 1
       }
       record.appendLine(line)

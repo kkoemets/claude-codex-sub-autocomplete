@@ -16,7 +16,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /** Uses the installed Terminal plugin and a real shell; only the provider is a fixture. */
-internal fun Driver.exerciseInstalledTerminal(application: Path, fixture: TerminalSmokeFixture) {
+internal fun Driver.exerciseInstalledTerminal(
+  application: Path,
+  fixture: TerminalSmokeFixture,
+  restartOnly: Boolean = false,
+): RestartTerminalEvidence {
   val project = singleProject()
   val debugLevel = utility(TerminalDebugLevelRef::class).valueOf("DEBUG")
   for (name in listOf("TerminalCompletionService", "TerminalWidgetTabInstaller")) {
@@ -27,7 +31,7 @@ internal fun Driver.exerciseInstalledTerminal(application: Path, fixture: Termin
   val inputTimeout = (if (externalInput) 120 else 15).seconds
   fixture.assertNotExecuted()
   val requestCountBefore = fixture.requestCount()
-  run {
+  return run {
     val engine = "classic"
     ideFrame { toFront() }
     val terminal = withContext(OnDispatcher.EDT) {
@@ -35,9 +39,15 @@ internal fun Driver.exerciseInstalledTerminal(application: Path, fixture: Termin
       manager.createNewSession(project.getBasePath(), "Autocomplete classic", listOf("/bin/bash", "--noprofile", "--norc"), true, false)
     }
     println("$engine terminal reference: $terminal")
+    var readiness = "not sampled"
     try {
       waitFor("terminal shell ready", 30.seconds) {
-        terminal.getText().isNotBlank() && !terminal.isCommandRunning()
+        val text = terminal.getText()
+        val running = if (text.isNotBlank()) terminal.isCommandRunning() else null
+        val current = "textLength=${text.length}; commandRunning=$running"
+        if (current != readiness) println("Classic shell readiness: $current")
+        readiness = current
+        text.isNotBlank() && running == false
       }
       activateTestIde(application)
       withContext(OnDispatcher.EDT) { terminal.requestFocus() }
@@ -58,17 +68,33 @@ internal fun Driver.exerciseInstalledTerminal(application: Path, fixture: Termin
       assertEquals(requestCountBefore + 1, fixture.requestCount(), "Physical Tab must generate exactly one request")
       assertFalse(terminal.isCommandRunning(), "Generated terminal command must remain editable")
       takeScreenshot("compatibility-${getProductVersion().productCode}-$engine-terminal-review")
+      val evidence = RestartTerminalEvidence(fixture.requestCount() - requestCountBefore, Files.exists(fixture.marker))
+      if (restartOnly) {
+        takeScreenshot("compatibility-${getProductVersion().productCode}-restart-terminal-review")
+        terminal.getTtyConnector().write("\u0015")
+        waitFor("post-restart generated command was editable input", inputTimeout) {
+          !fixture.commandIsRendered(terminal.getText())
+        }
+        fixture.assertNotExecuted()
+        assertEquals(requestCountBefore + 1, fixture.requestCount(), "Clearing post-restart input must not generate another request")
+        println("Installed restart terminal: physical Tab generated exactly one request; editable command unexecuted")
+        return@run evidence
+      }
       proveEditableInputAndExecutionSentinel(fixture, terminal::getText) { terminal.getTtyConnector().write(it) }
       println("$engine terminal: physical Tab replaced the request; editable command remained unexecuted; explicit Enter created the sentinel")
       exerciseClassicProgramTab(terminal, fixture, externalInput, alternateScreen = false)
       exerciseClassicProgramTab(terminal, fixture, externalInput, alternateScreen = true)
+      evidence
     } catch (failure: Throwable) {
+      println("Classic last shell readiness: $readiness")
       printClassicInputDiagnostics(terminal, fixture, "Classic fixture failed")
       printClassicPluginDiagnostics(fixture)
       throw failure
     }
   }
 }
+
+internal data class RestartTerminalEvidence(val physicalTabRequests: Long, val commandExecuted: Boolean)
 
 private fun Driver.printClassicInputDiagnostics(
   widget: TerminalWidgetRef,
@@ -203,6 +229,7 @@ internal fun shellQuote(value: String): String = "'" + value.replace("'", "'\"'\
 internal class TerminalSmokeFixture(projectPath: Path) {
   val marker: Path = projectPath.toAbsolutePath().resolve(".autocomplete-terminal-executed-${UUID.randomUUID()}")
   val requestLog: Path = marker.resolveSibling("${marker.fileName}.requests")
+  val editorLoadingGate: Path = marker.resolveSibling("${marker.fileName}.editor-loading")
   val command: String = "touch ${shellQuote(marker.toString())}"
 
   fun assertNotExecuted() {

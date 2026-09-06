@@ -11,12 +11,173 @@ import kotlin.test.assertTrue
 
 class InstalledIdeRuntimeLogGateTest {
   @Test
+  fun `every platform error severity fails a successful fixture`() = withLogs { logs ->
+    Files.writeString(logs.resolve("idea.log"), """
+      ERROR - #com.intellij.openapi.editor.colors.EditorColorsManager - Missing color scheme
+      SEVERE - #com.android.tools.idea.assistant.Assistant - Bundle unavailable
+      FATAL - #com.intellij.platform.Platform - Startup failed
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertTrue(scan.pluginErrors.isEmpty())
+    assertEquals(3, scan.unrelatedErrors.size)
+    val failure = assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+    assertTrue(failure.message.orEmpty().contains("EditorColorsManager"))
+    assertTrue(failure.message.orEmpty().contains("Assistant"))
+    assertTrue(failure.message.orEmpty().contains("Startup failed"))
+  }
+
+  @Test
+  fun `saved platform stacktrace fails even with a clean primary log`() = withLogs { logs ->
+    val saved = Files.createDirectories(logs.resolve("errors/platform-error"))
+      .resolve("stacktrace.txt")
+    Files.writeString(saved, """
+      java.lang.IllegalStateException: Platform service unavailable
+          at com.intellij.platform.Service.get(Service.java:42)
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertTrue(scan.pluginErrors.isEmpty())
+    assertEquals(saved, scan.unrelatedErrors.single().file)
+    val failure = assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+    assertTrue(failure.message.orEmpty().contains("$saved:1"))
+  }
+
+  @Test
+  fun `platform error in compressed rotation blocks a clean current log`() = withLogs { logs ->
+    GZIPOutputStream(Files.newOutputStream(logs.resolve("idea.log.1.gz"))).bufferedWriter().use {
+      it.write("[FATAL] #com.intellij.platform.Platform - Failed before rotation\n")
+    }
+    assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+  }
+
+  @Test
+  fun `plugin diagnostic ERROR reported through warning logger fails`() = withLogs { logs ->
+    Files.writeString(logs.resolve("idea.log"), """
+      INFO - #com.intellij.idea.Main - IDE started
+      WARN - #c.k.s.d.DiagnosticsLog - [ERROR] Completion request failed
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertEquals(2, scan.pluginErrors.single().line)
+    assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+  }
+
+  @Test
+  fun `JVM fatal banner in a crash log fails without a level header`() = withLogs { logs ->
+    val crash = Files.createDirectories(logs.resolve("jvm-crash")).resolve("java_error_in_idea_123.log")
+    Files.writeString(crash, """
+      #
+      # A fatal error has been detected by the Java Runtime Environment:
+      # SIGSEGV (0xb) at pc=0x0000000000000000, pid=123, tid=456
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertEquals(crash, scan.unrelatedErrors.single().file)
+    assertEquals(2, scan.unrelatedErrors.single().line)
+    assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+  }
+
+  @Test
+  fun `uncaught stderr exception fails without a level header`() = withLogs { logs ->
+    val stderr = logs.resolve("stderr.txt")
+    Files.writeString(stderr, """
+      INFO - #com.kkoemets.subscriptionautocomplete.Plugin - Loaded
+      Exception in thread "main" java.lang.UnsatisfiedLinkError: native library unavailable
+          at com.intellij.platform.NativeLoader.load(NativeLoader.java:42)
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertTrue(scan.pluginErrors.isEmpty())
+    assertEquals(stderr, scan.unrelatedErrors.single().file)
+    assertEquals(2, scan.unrelatedErrors.single().line)
+    assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+  }
+
+  @Test
+  fun `warnings and quoted error labels do not fail a clean fixture`() = withLogs { logs ->
+    Files.writeString(logs.resolve("idea.log"), """
+      INFO - #com.kkoemets.subscriptionautocomplete.Plugin - Loaded
+      WARN - #c.k.s.d.DiagnosticsLog - A recoverable warning
+      WARNING - #com.intellij.platform.Platform - Retry available
+      WARN - #com.intellij.diagnostic.Logger - Documentation mentions [ERROR] records
+    """.trimIndent())
+    assertEquals("finished", InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "finished" })
+  }
+
+  @Test
+  fun `successful fixture cannot hide a missing primary log behind a rotation`() = withLogs { logs ->
+    Files.writeString(logs.resolve("idea.log.1"), "INFO - #com.intellij.idea.Main - Old startup\n")
+    Files.delete(logs.resolve("idea.log"))
+    val failure = assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+    assertTrue(failure.message.orEmpty().contains("Missing or empty"))
+  }
+
+  @Test
+  fun `empty saved stacktrace cannot silently pass`() = withLogs { logs ->
+    val saved = Files.createDirectories(logs.resolve("errors/incomplete-error"))
+      .resolve("stacktrace.txt")
+    Files.writeString(saved, " \n")
+    val failure = assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) { "fixture passed" }
+    }
+    assertTrue(failure.message.orEmpty().contains("Empty saved IDE stacktrace"))
+  }
+
+  @Test
   fun `multiline platform SEVERE record with plugin frames fails`() = withLogs { logs ->
     Files.writeString(logs.resolve("idea.log"), severe)
     val scan = InstalledIdeRuntimeLogGate.scan(logs)
     assertEquals(1, scan.pluginErrors.size)
     assertEquals(1, scan.pluginErrors.single().line)
-    assertFailsWith<IllegalStateException> { scan.requireNoPluginErrors() }
+    assertFailsWith<IllegalStateException> { scan.requireNoBlockingErrors() }
+  }
+
+  @Test
+  fun `MacBook dynamic reload classloader error fails a successful fixture`() = withLogs { logs ->
+    // Minimized from the supplied 2026-09-06 macOS report after unloading and reinstalling 0.6.4.
+    Files.writeString(logs.resolve("idea.log"), """
+      2026-09-06 16:47:14,530 [12918834] SEVERE - #c.i.i.p.PluginManager - class com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings cannot be cast to class com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings (com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings is in unnamed module of loader com.intellij.ide.plugins.cl.PluginClassLoader @a74a6fc; com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings is in unnamed module of loader com.intellij.ide.plugins.cl.PluginClassLoader @19035945)
+      java.lang.ClassCastException: class com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings cannot be cast to class com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings (com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings is in unnamed module of loader com.intellij.ide.plugins.cl.PluginClassLoader @a74a6fc; com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings is in unnamed module of loader com.intellij.ide.plugins.cl.PluginClassLoader @19035945)
+          at com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings${'$'}Companion.getInstance(AutocompleteSettings.kt:165)
+          at com.kkoemets.subscriptionautocomplete.terminal.TerminalWidgetTabInstaller.intercept${'$'}lambda${'$'}0(TerminalCompletionStartupActivity.kt:82)
+          at com.kkoemets.subscriptionautocomplete.terminal.TerminalTabSequence.dispatch(TerminalCompletionStartupActivity.kt:149)
+          at com.kkoemets.subscriptionautocomplete.terminal.TerminalWidgetTabInstaller.intercept(TerminalCompletionStartupActivity.kt:80)
+          at com.kkoemets.subscriptionautocomplete.terminal.TerminalWidgetTabInstaller${'$'}install${'$'}dispatcher${'$'}1.dispatch(TerminalCompletionStartupActivity.kt:51)
+          at com.intellij.ide.IdeEventQueue.dispatchByCustomDispatchers(IdeEventQueue.kt:659)
+      2026-09-06 16:47:14,530 [12918834] SEVERE - #c.i.i.p.PluginManager - IntelliJ IDEA 2026.2.2  Build #IU-262.10315.125
+      2026-09-06 16:47:14,533 [12918837] SEVERE - #c.i.i.p.PluginManager - Plugin to blame: Claude/Codex Sub Autocomplete version: 0.6.4
+    """.trimIndent())
+    val scan = InstalledIdeRuntimeLogGate.scan(logs)
+    assertEquals(2, scan.pluginErrors.size)
+    val classloaderError = scan.pluginErrors.first()
+    assertEquals(1, classloaderError.line)
+    assertTrue(classloaderError.text.contains("java.lang.ClassCastException"))
+    assertTrue(classloaderError.text.contains("PluginClassLoader @a74a6fc"))
+    assertTrue(classloaderError.text.contains("PluginClassLoader @19035945"))
+    assertTrue(classloaderError.text.contains("TerminalWidgetTabInstaller"))
+    assertTrue(scan.pluginErrors.last().text.contains("Plugin to blame:"))
+    assertTrue(scan.unrelatedErrors.single().text.contains("IntelliJ IDEA 2026.2.2"))
+    assertFailsWith<IllegalStateException> { scan.requireNoBlockingErrors() }
+    var fixtureCompleted = false
+    val failure = assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) {
+        fixtureCompleted = true
+        "fixture passed"
+      }
+    }
+    assertTrue(fixtureCompleted)
+    assertTrue(failure.message.orEmpty().contains("2 plugin, 1 unrelated"))
+    assertTrue(failure.message.orEmpty().contains("AutocompleteSettings cannot be cast"))
   }
 
   @Test
@@ -40,7 +201,7 @@ class InstalledIdeRuntimeLogGateTest {
     val scan = InstalledIdeRuntimeLogGate.scan(logs)
     assertEquals(2, scan.pluginErrors.size)
     assertTrue(scan.unrelatedErrors.isEmpty())
-    assertFailsWith<IllegalStateException> { scan.requireNoPluginErrors() }
+    assertFailsWith<IllegalStateException> { scan.requireNoBlockingErrors() }
   }
 
   @Test
@@ -54,7 +215,7 @@ class InstalledIdeRuntimeLogGateTest {
     val scan = InstalledIdeRuntimeLogGate.scan(logs)
     assertTrue(scan.pluginErrors.isEmpty())
     assertEquals(2, scan.unrelatedErrors.size)
-    scan.requireNoPluginErrors()
+    assertFailsWith<IllegalStateException> { scan.requireNoBlockingErrors() }
   }
 
   @Test
@@ -65,7 +226,9 @@ class InstalledIdeRuntimeLogGateTest {
       INFO - #com.kkoemets.subscriptionautocomplete.Plugin - Loaded
     """.trimIndent())
     val messages = mutableListOf<String>()
-    assertEquals("finished", InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, messages::add) { "finished" })
+    assertFailsWith<IllegalStateException> {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, messages::add) { "finished" }
+    }
     val scan = InstalledIdeRuntimeLogGate.scan(logs)
     assertTrue(scan.pluginErrors.isEmpty())
     assertEquals(1, scan.unrelatedErrors.size)
@@ -100,14 +263,14 @@ class InstalledIdeRuntimeLogGateTest {
   }
 
   @Test
-  fun `late shutdown error is checked after an early fixture return`() = withLogs { logs ->
+  fun `late platform shutdown error is checked after an early fixture return`() = withLogs { logs ->
     var shutdownFlushed = false
     assertFailsWith<IllegalStateException> {
       InstalledIdeRuntimeLogGate.afterIdeShutdown(logs, {}) {
         try {
           return@afterIdeShutdown "terminal-only fixture complete"
         } finally {
-          Files.writeString(logs.resolve("idea.log"), severe)
+          Files.writeString(logs.resolve("idea.log"), "ERROR - #com.intellij.platform.Platform - Late shutdown failure\n")
           shutdownFlushed = true
         }
       }
@@ -129,7 +292,7 @@ class InstalledIdeRuntimeLogGateTest {
     }
     assertSame(original, thrown)
     assertEquals(1, thrown.suppressed.size)
-    assertTrue(thrown.suppressed.single().message.orEmpty().contains("Installed plugin runtime errors"))
+    assertTrue(thrown.suppressed.single().message.orEmpty().contains("Installed IDE runtime errors"))
   }
 
   @Test

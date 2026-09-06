@@ -30,7 +30,7 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
 
 ## Prepare the release
 
-1. Update `pluginVersion`, `currentPlatformVersion`, `CHANGELOG.md`, and the `<change-notes>` section in `plugin.xml` together. `currentPlatformVersion` must name the current stable IntelliJ release; keep `platformVersion`, `minimumPlatformVersion`, and `pluginSinceBuild` aligned with the oldest supported release.
+1. Update `pluginVersion`, `currentPlatformVersion`, `CHANGELOG.md`, and the `<change-notes>` section in `plugin.xml` together. Keep `<idea-plugin require-restart="true">`: plugin changes must use the IDE restart path. `currentPlatformVersion` must name the current stable IntelliJ release; keep `platformVersion`, `minimumPlatformVersion`, and `pluginSinceBuild` aligned with the oldest supported release.
 2. Confirm the working tree contains no internal notes, credentials, generated reports, or unrelated changes.
    Refresh `currentPyCharmVersion` and `currentAndroidStudioVersion` alongside the
    current IDEA target. Android Studio's download version and underlying platform
@@ -48,16 +48,57 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    [the API stability policy](docs/api-stability.md). Review their findings rather
    than interpreting a passing gate as a future-compatibility guarantee.
 
-4. Run installed-plugin fixtures against the exact release ZIP. On a shared host,
+4. Sign the candidate and verify its signature before installed testing:
+
+   ```bash
+   ./gradlew signPlugin verifyPluginSignature --no-daemon
+   ```
+
+   Run installed-plugin fixtures against that exact signed release ZIP. On a shared host,
    use the isolated Linux display so the tests cannot take host keyboard focus:
 
    ```bash
    ./scripts/test-isolated-ides.sh /absolute/path/to/plugin.zip
    ```
 
+   On an ARM host, run IDEA and PyCharm natively in the Linux guest. Android's
+   Linux distribution requires x86-64; emulated UI freezes still fail the gate:
+
+   ```bash
+   IDE_TEST_PLATFORM=linux/arm64 ./scripts/test-isolated-ides.sh /absolute/path/to/plugin.zip
+   IDE_TEST_PLATFORM=linux/amd64 ./scripts/test-isolated-ides.sh /absolute/path/to/plugin.zip autocompleteInstalledAndroidStudioTest
+   ```
+
+   For native macOS ARM input coverage, provision a disposable Tart VM with a
+   logged-in desktop user, guest-local input/screen-capture permissions, and Python
+   3.9+. Keep it stopped before invoking this runner. Supply a dedicated test-only
+   Gradle cache under `out/`, a JDK 21 home, and the recorded immutable image digest:
+
+   ```bash
+   python3 scripts/test-isolated-macos.py \
+     --tart /absolute/path/to/tart --vm autocomplete-test \
+     --image-identity sha256:IMAGE_MANIFEST_SHA256 \
+     --gradle-cache "$PWD/out/macos-gradle-cache" \
+     --java-home /absolute/path/to/jdk/Contents/Home \
+     /absolute/path/to/plugin.zip autocompleteInstalledAndroidStudioTest
+   ```
+
+   This uses a private 1920×1080 guest display with host graphics, audio, and
+   clipboard sharing disabled. It archives independently verified guest inputs,
+   output, environment, and completion receipts under `out/isolated-macos-tests/`.
+   Never open its desktop on the shared host or grant host input permissions.
+
    Compatibility changes require the installed fixture checks in every maintained
    product, including editor dismissal/acceptance and terminal insertion without
-   execution. The isolated command runs all three. It preserves its source snapshot,
+   execution, direct physical Tab acceptance of the first automatic suggestion,
+   and an update queued through the IDE installer followed by an actual process
+   restart. Saved provider settings and physical terminal completion must work
+   after restart, with no generated command executed. The platform must reject
+   restart-free loading/unloading of the candidate descriptor.
+   The scheduler fixture reinstalls the same candidate version; it does not prove
+   the Install from Disk dialog flow or migration from the previous published ZIP.
+   The isolated command uses physical keyboard input inside the private display.
+   It preserves its source snapshot,
    artifact identity, environment, and reports under `out/isolated-ide-tests/`.
 
    Linux results do not establish macOS or Windows native input behavior. For those
@@ -72,11 +113,22 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    target viewport, including loading and completed states. Record the exact IDE
    builds and distinguish fixture checks from live provider coverage.
 
-   Each installed-product run must also pass the runtime log gate after IDE
-   shutdown. It rejects plugin-attributed ERROR/SEVERE/FATAL records and saved
+   IDEA and PyCharm fixtures first complete stock IDE evaluation setup without this
+   plugin, then start a fresh plugin installation with that guest's generated trial
+   state. Setup logs are retained separately; installed-plugin sessions must
+   still satisfy the strict error policy below.
+
+   Each installed-product run must also pass the runtime log gate after both IDE
+   sessions shut down (before and after the installer update/restart). It checks every ERROR/SEVERE/FATAL record and saved
    error stacktraces, including threading assertions that do not fail functional
-   checks. Missing logs fail verification. Report unrelated IDE errors separately;
-   a green JUnit behavior check alone does not establish a clean plugin runtime.
+   checks, explicit diagnostic errors, and JVM crashes. Missing or empty logs fail
+   verification. Plugin errors and unknown platform errors block release. The only
+   accepted platform error is the independently reproduced Android Studio
+   `AI-261.26222.65.2614.16204760` Reworked-terminal/C++ caret-listener lock exception
+   on macOS with its bundled JDK 25.0.3. The gate requires the exact complete stack,
+   associated metadata, and saved error record; accepted records remain reported.
+   Any build, stack, runtime, or attribution change requires a new investigation.
+   A green behavior check alone does not establish a clean runtime.
 
    Preserve the tested ZIP, JUnit XML, runtime logs, and selected screenshots
    outside `build/` before a clean rebuild. Record the installed artifact hash.
@@ -119,11 +171,28 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    The 200-case deterministic corpus remains part of the headless release gate.
    It checks the shared prompt, sanitizer, semantic scorer, and safety contracts
    without calling either provider.
-6. Export the signing variables and build the signed artifact:
+6. Collect the successful isolated run directories under one evidence directory.
+   Keep reports, screenshots, incident notes, and submission records under the
+   ignored `out/` directory or outside the checkout. Do not commit release evidence
+   documents; public documentation should describe supported behavior and usage.
+   Create `release-evidence.json`, mapping every maintained product to its relative
+   run directory (one run may serve multiple products):
+
+   ```json
+   {"schemaVersion":1,"runs":{"IU":"run-arm","PY":"run-arm","AI":"run-amd64"}}
+   ```
+
+   Run the headless evidence validator before either website or Gradle publication:
 
    ```bash
-   ./gradlew signPlugin verifyPluginSignature --no-daemon
+   ./gradlew verifyReleaseIdeEvidence -PreleaseEvidenceDir=/absolute/path/to/evidence --no-daemon
    ```
+
+   It checks the actual publication ZIP, current production and test sources,
+   exact maintained IDE builds, full passing fixtures, installed payloads, and
+   rescans archived logs. Missing, partial, or stale evidence fails. This task
+   never launches an IDE. Re-signing changes archive identity and requires new
+   exact-archive runtime evidence.
 
 7. Inspect the signed ZIP contents and calculate its checksum:
 
@@ -148,18 +217,21 @@ public availability after approval. Browser uploads do not require `PUBLISH_TOKE
 Before submission, review the listing's description, change notes, Getting Started
 instructions, policy links, media, and product compatibility. With **Use changes
 from UI** off, the description and change notes come from `plugin.xml`; Getting
-Started and policy links need separate updates in the listing. Keep the advertised
-behavior aligned with the version available to users. See
-[the 0.6.4 Marketplace submission record](docs/marketplace/0.6.4.md).
+Started, custom pages, and policy links need separate updates in the listing.
+Keep the published guide aligned with `docs/marketplace/guide.md` and Getting
+Started with `docs/marketplace/getting-started.html`. Keep the advertised
+behavior aligned with the version available to users. Keep submission IDs and
+moderation records with the local release reports.
 
 For Gradle publication to the public default channel, use:
 
 ```bash
-./gradlew publishPlugin --no-daemon
+./gradlew publishPlugin -PreleaseEvidenceDir=/absolute/path/to/evidence --no-daemon
 ```
 
 The configured publishing task uses `PUBLISH_TOKEN`, channel `default`, and
-`hidden=false`, and depends on the full headless release gate. Reuse the verified
+`hidden=false`, and requires the full headless release gate, signature verification,
+and archived isolated runtime evidence. Reuse the verified
 artifact; a newly built or signed ZIP needs its own identity checks before submission.
 
 An accepted upload is submitted for Marketplace review; it is not yet a public

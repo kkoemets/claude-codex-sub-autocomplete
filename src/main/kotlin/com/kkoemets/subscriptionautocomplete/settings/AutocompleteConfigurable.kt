@@ -40,8 +40,8 @@ class AutocompleteConfigurable : Configurable {
     toolTipText = "<html>Default: low. Higher effort can increase completion latency.<br>" +
       "Unsupported model and effort combinations are reported as errors.</html>"
   }
-  private val claudeExecutable = JBTextField()
-  private val codexExecutable = JBTextField()
+  private val claudeExecutable = JBTextField(20)
+  private val codexExecutable = JBTextField(20)
   private val debounceMs = numericSettingField(
     "<html>How long automatic completion waits after you stop typing.<br>" +
       "Lower values start sooner but can send and cancel more requests while you type.<br>" +
@@ -73,7 +73,8 @@ class AutocompleteConfigurable : Configurable {
       "It is included only when it looks relevant to what you are typing.</html>"
   }
   private val subscriptionCrossFile = JBCheckBox(
-    "Allow cross-file context in Claude/Codex requests, including explicit related-edit proposals",
+    "<html>Allow cross-file context in Claude/Codex requests,<br>" +
+      "including explicit related-edit proposals</html>",
   ).apply {
     toolTipText = "<html>Allow relevant snippets from other files to be sent to your selected Claude or Codex " +
       "subscription.<br>Leave this off to keep requests limited to the current file.</html>"
@@ -101,8 +102,9 @@ class AutocompleteConfigurable : Configurable {
       .addComponent(enabled)
       .addLabeledComponent("Automatic typing completions:", automaticEngine)
       .addComponent(terminalCompletions)
-      .addComponent(JBLabel(
-        "Terminal requests share only the request, shell, working directory, and detected project-marker names; not terminal history or output.",
+      .addComponent(description(
+        "Terminal requests share only the request, shell, working directory,<br>" +
+          "and detected project-marker names; not terminal history or output.",
       ))
       .addSeparator()
       .addLabeledComponent("Active provider:", provider)
@@ -121,17 +123,23 @@ class AutocompleteConfigurable : Configurable {
       .addComponent(recentEditContext)
       .addComponent(openTabContext)
       .addComponent(subscriptionCrossFile)
-      .addComponent(JBLabel(
-        "Related-edit proposals are requested explicitly and open as read-only previews; this plugin does not apply them.",
+      .addComponent(description(
+        "Related-edit proposals are requested explicitly and open as read-only previews;<br>" +
+          "this plugin does not apply them.",
       ))
       .addComponent(diagnostics)
-      .addComponent(JBLabel(
-        "Only existing Claude Code and ChatGPT subscriptions are accepted. API keys and billed provider fallbacks are ignored.",
+      .addComponent(description(
+        "Only existing Claude Code and ChatGPT subscriptions are accepted.<br>" +
+          "API keys and billed provider fallbacks are ignored.",
       ))
-      .addComponent(JBLabel(
-        "Requests send bounded code context directly to the selected provider; the plugin operator receives no source code.",
+      .addComponent(description(
+        "Requests send bounded code context directly to the selected provider;<br>" +
+          "the plugin operator receives no source code.",
       ))
-      .addComponent(JBLabel("The 'AI ○ idle · Claude/Codex' status-bar entry also opens settings, tests, and diagnostics."))
+      .addComponent(description(
+        "The 'AI ○ idle · Claude/Codex' status-bar entry also opens<br>" +
+          "settings, tests, and diagnostics.",
+      ))
       .addComponentFillVertically(JPanel(), 0)
       .panel
     return JPanel(BorderLayout()).also {
@@ -218,7 +226,10 @@ class AutocompleteConfigurable : Configurable {
     ComboBox(CollectionComboBoxModel(values)).apply { isEditable = true }
 
   private fun numericSettingField(tooltip: String): JBTextField =
-    JBTextField().apply { toolTipText = tooltip }
+    JBTextField(6).apply { toolTipText = tooltip }
+
+  // Keep explanatory copy from widening the entire two-column settings form.
+  private fun description(text: String): JBLabel = JBLabel("<html>$text</html>")
 
   private fun editorText(comboBox: ComboBox<String>): String = comboBox.editor.item?.toString()?.trim().orEmpty()
 

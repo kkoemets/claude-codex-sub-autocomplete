@@ -8,9 +8,13 @@ import com.kkoemets.subscriptionautocomplete.provider.ConnectivityResult
 import com.kkoemets.subscriptionautocomplete.provider.ProviderConnectivityTester
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.util.Disposer
@@ -18,7 +22,12 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -28,6 +37,7 @@ import java.awt.Point
 import java.awt.datatransfer.StringSelection
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.Action
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -51,6 +61,7 @@ class DiagnosticsDialog(
   private val refreshTimer = Timer(250) { refreshOutputNow() }.apply { isRepeats = false }
   @Volatile
   private var dialogDisposed = false
+  private val dialogScope = DiagnosticsDialogService.getInstance().createScope(myDisposable)
 
   init {
     title = "Claude/Codex Sub Autocomplete Diagnostics"
@@ -112,19 +123,17 @@ class DiagnosticsDialog(
     } else {
       "Testing ${provider.displayName} executable and subscription login…"
     }
-    ApplicationManager.getApplication().executeOnPooledThread {
-      val result = runBlocking {
-        if (liveModel) {
-          ProviderConnectivityTester.testCompletion(provider, settings)
-        } else {
-          ProviderConnectivityTester.testLogin(provider, settings)
-        }
+    dialogScope.launch {
+      val result = if (liveModel) {
+        ProviderConnectivityTester.testCompletion(provider, settings)
+      } else {
+        ProviderConnectivityTester.testLogin(provider, settings)
       }
-      ApplicationManager.getApplication().invokeLater({
-        if (!isShowing) return@invokeLater
+      withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+        if (!isShowing) return@withContext
         showResult(result)
         setTestRunning(false)
-      }, ModalityState.any())
+      }
     }
   }
 
@@ -141,7 +150,7 @@ class DiagnosticsDialog(
   private fun scheduleRefresh() {
     if (dialogDisposed) return
     if (!SwingUtilities.isEventDispatchThread()) {
-      ApplicationManager.getApplication().invokeLater({ scheduleRefresh() }, ModalityState.any())
+      dialogScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) { scheduleRefresh() }
       return
     }
     refreshTimer.restart()
@@ -149,10 +158,9 @@ class DiagnosticsDialog(
 
   private fun scheduleCompletionSummaryRefresh(snapshot: CompletionActivitySnapshot) {
     if (!SwingUtilities.isEventDispatchThread()) {
-      ApplicationManager.getApplication().invokeLater(
-        { scheduleCompletionSummaryRefresh(snapshot) },
-        ModalityState.any(),
-      )
+      dialogScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+        scheduleCompletionSummaryRefresh(snapshot)
+      }
       return
     }
     if (!dialogDisposed) updateCompletionSummary(snapshot)
@@ -173,7 +181,7 @@ class DiagnosticsDialog(
   private fun refreshOutputNow() {
     if (dialogDisposed) return
     if (!SwingUtilities.isEventDispatchThread()) {
-      ApplicationManager.getApplication().invokeLater({ refreshOutputNow() }, ModalityState.any())
+      dialogScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) { refreshOutputNow() }
       return
     }
     refreshTimer.stop()
@@ -188,7 +196,7 @@ class DiagnosticsDialog(
       "No diagnostic events yet. Trigger an inline completion or run a connectivity test."
     }
     output.caretPosition = output.document.length
-    SwingUtilities.invokeLater {
+    dialogScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) {
       val viewport = SwingUtilities.getAncestorOfClass(JViewport::class.java, output) as? JViewport
       if (viewport != null) {
         viewport.viewPosition = Point(0, (output.height - viewport.extentSize.height).coerceAtLeast(0))
@@ -210,5 +218,35 @@ class DiagnosticsDialog(
     fun open(project: Project?, modal: Boolean = false) {
       DiagnosticsDialog(project, modal).show()
     }
+  }
+}
+
+/** Owns open diagnostics dialogs and their work across dynamic plugin unload. */
+@Service(Service.Level.APP)
+internal class DiagnosticsDialogService(private val coroutineScope: CoroutineScope) : Disposable {
+  fun createScope(dialogDisposable: Disposable): CoroutineScope {
+    disposeDialogWithService(this, dialogDisposable)
+    val dialogJob = SupervisorJob(coroutineScope.coroutineContext[Job])
+    Disposer.register(dialogDisposable) { dialogJob.cancel() }
+    return CoroutineScope(coroutineScope.coroutineContext + dialogJob)
+  }
+
+  override fun dispose() = Unit
+
+  companion object {
+    fun getInstance(): DiagnosticsDialogService =
+      ApplicationManager.getApplication().getService(DiagnosticsDialogService::class.java)
+  }
+}
+
+internal fun disposeDialogWithService(service: Disposable, dialogDisposable: Disposable) {
+  // Showing a dialog can reparent it to the IDE client session. Keep the unload hook separate.
+  val connected = AtomicBoolean(true)
+  val unloadHook = Disposable {
+    if (connected.compareAndSet(true, false)) Disposer.dispose(dialogDisposable)
+  }
+  Disposer.register(service, unloadHook)
+  Disposer.register(dialogDisposable) {
+    if (connected.compareAndSet(true, false)) Disposer.dispose(unloadHook)
   }
 }

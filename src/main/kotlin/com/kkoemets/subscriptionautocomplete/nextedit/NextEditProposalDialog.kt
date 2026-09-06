@@ -1,6 +1,7 @@
 package com.kkoemets.subscriptionautocomplete.nextedit
 
 import com.kkoemets.subscriptionautocomplete.context.ContextFilePolicy
+import com.kkoemets.subscriptionautocomplete.diagnostics.disposeDialogWithService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -59,6 +60,7 @@ internal class NextEditProposalDialog(
     openTarget.addActionListener { openSelectedTarget() }
     copyProposed.addActionListener { copySelectedProposal() }
     init()
+    disposeDialogWithService(NextEditProposalService.getInstance(project), myDisposable)
     if (proposal.edits.isNotEmpty()) edits.selectedIndex = 0
     staleRefreshTimer.start()
   }

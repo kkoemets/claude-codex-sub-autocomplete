@@ -4,6 +4,7 @@ import com.intellij.driver.sdk.openFile
 import com.intellij.driver.client.Remote
 import com.intellij.driver.model.OnDispatcher
 import com.intellij.driver.sdk.invokeAction
+import com.intellij.driver.sdk.getOpenProjects
 import com.intellij.driver.sdk.singleProject
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.driver.sdk.waitFor
@@ -99,6 +100,10 @@ class InstalledPluginSmokeTest {
           check(error == null) { requireNotNull(error) }
         }
     }
+    val trialBootstrap = if (productCode in setOf("IU", "PY") && System.getProperty("os.name") == "Linux" &&
+      System.getProperty("user.home") == "/home/tester") {
+      bootstrapIsolatedIdeTrial(productCode, starterInstallation(), requireNotNull(System.getProperty("ideTest.expectedBuild")))
+    } else null
     val ideContext = Starter.newContext(
       testName = "subscriptionAutocomplete-${liveProvider?.name ?: "fixture"}-${System.nanoTime()}",
       testCase = TestCase(when (productCode) {
@@ -108,15 +113,23 @@ class InstalledPluginSmokeTest {
         else -> error("Unsupported smoke-test product: $productCode")
       }.copy(getInstaller = { ExistingIdeInstaller(starterInstallation()) }), projectInfo = LocalProjectInfo(projectPath)),
     ).apply {
+      // The IDE's pending plugin-install script lives under system/plugins.
+      // Both launches must retain the same config, system, plugins and project.
+      preserveSystemDir = true
       if (productCode == "AI") {
         // Google's separate analytics consent modal blocks a fresh test JVM.
         // This built-in switch suppresses the prompt without writing an opt-in.
         ide.vmOptions.addSystemProperty("disable.android.analytics.consent.dialog", true)
         println("Android Studio test startup: analytics consent dialog disabled; no analytics opt-in written")
+        // The stock WhatsNewURLProvider resolves this directory with toRealPath()
+        // before mkdirs(). Prepare its empty cache in the fresh test environment.
+        val whatsNewCache = Files.createDirectories(paths.systemDir.resolve("whatsnew"))
+        println("Android Studio test startup: prepared What's New cache directory: $whatsNewCache; normal feature remains enabled")
       }
       installedApplication = ide.installationPath
       preparedInstallationRoot?.toFile()?.deleteRecursively()
       preparedInstallationRoot = null
+      trialBootstrap?.copyInto(paths.configDir)
       // Starter opens ZIPs for writing and may delete its input on extraction
       // failure. Give it a disposable copy, preserving the supplied release ZIP.
       val installerArchive = Files.createTempFile("subscription-autocomplete-install-", ".zip")
@@ -133,76 +146,137 @@ class InstalledPluginSmokeTest {
       Files.deleteIfExists(installerArchive)
       writeTestSettings(paths.configDir, executable, ideVersion, provider, liveProvider != null)
     }
+    println("Installed fixture home: ${ideContext.paths.testHome}")
+    val firstLaunch = if (liveProvider == null) "before-restart" else ""
+    val firstTestHome = ideContext.paths.testHome.resolve(firstLaunch)
+    val secondTestHome = ideContext.paths.testHome.resolve("after-restart")
+    var scheduledRestart: ScheduledPluginRestart? = null
     // Starter closes and joins the IDE before this outer gate reads flushed logs.
-    // Returning from a terminal-only fixture does not bypass the outer finally.
-    InstalledIdeRuntimeLogGate.afterIdeShutdown(ideContext.paths.testHome.resolve("log")) {
-      ideContext.runIdeWithDriver(runTimeout = installedRunTimeout(liveProvider != null)).useDriverAndCloseIde {
-        val productVersion = getProductVersion()
-        check(productVersion.productCode == productCode) {
-          "Expected $productCode, launched $productVersion"
-        }
-        check(productVersion.asString.removePrefix("$productCode-") == System.getProperty("ideTest.expectedBuild")) {
-          "The running IDE must match the exact Gradle verification target: $productVersion"
-        }
-        println("Installed compatibility target: $productVersion")
-        if (liveProvider == null) {
-          withContext(OnDispatcher.EDT) {
-            val settings = service(InstalledAutocompleteSettingsRef::class)
-            val state = settings.snapshot()
-            check(state.getEnabled() && !state.getManualOnly() && state.getAutomaticEngine() == "SELECTED_SUBSCRIPTION") {
-              "A fresh installation must enable automatic subscription completion without saved settings"
-            }
-            println("Fresh installation: enabled=true; manualOnly=false; automaticEngine=SELECTED_SUBSCRIPTION; no prewritten plugin settings")
-            // Configure only the fixture provider; retain the actual first-install automatic choice.
-            state.setProvider(provider.name)
-            state.setClaudeExecutable(executable.absolutePathString())
-            settings.loadState(state)
+    // Every selected fixture surface is followed by the same restart and log gates.
+    try {
+      InstalledIdeRuntimeLogGate.afterIdeShutdown(
+          firstTestHome.resolve("log"),
+          expectedIdeBuild = "$productCode-${System.getProperty("ideTest.expectedBuild")}",
+        ) {
+        ideContext.runIdeWithDriver(runTimeout = installedRunTimeout(liveProvider != null), launchName = firstLaunch).useDriverAndCloseIde {
+          val productVersion = getProductVersion()
+          check(productVersion.productCode == productCode) {
+            "Expected $productCode, launched $productVersion"
           }
-        }
-        val terminalsOnly = System.getProperty("ideTest.terminalsOnly", "false").toBoolean()
-        val reworkedOnly = System.getProperty("ideTest.reworkedOnly", "false").toBoolean()
-        // A cold isolated IDE can expose services before its project frame is rendered.
-        waitFor("installed IDE frame ready", 120.seconds) { ideFrame().present() }
-        // Terminal input does not depend on indexing a fresh SDK/project.
-        if (!terminalsOnly && !reworkedOnly) waitForIndicators(5.minutes)
-        activateTestIde(installedApplication)
-        ideFrame {
-          toFront()
-          ideStatusBar {
-            val expectedActivity = if (liveProvider != null) "AI ⌨ hotkey" else "AI ○ idle"
-            val expectedProvider = if (provider == ProviderKind.CLAUDE) "Claude" else "Codex"
-            // Status widgets can be installed late during cold IDE initialization.
-            waitFor("installed plugin status widget ready", 5.minutes) {
-              widgetStatusBarPanel.widgets.list().any { it.text.startsWith("$expectedActivity · $expectedProvider") }
-            }
+          check(productVersion.asString.removePrefix("$productCode-") == System.getProperty("ideTest.expectedBuild")) {
+            "The running IDE must match the exact Gradle verification target: $productVersion"
           }
-        }
-        takeScreenshot("compatibility-$productCode-ready")
-        if (liveProvider == null) {
-          if (!reworkedOnly) exerciseInstalledTerminal(installedApplication, terminalFixture)
-          exerciseInstalledReworkedTerminal(installedApplication, terminalFixture)
-          if (reworkedOnly || terminalsOnly) return@useDriverAndCloseIde
-        }
-        exerciseInstalledTyping(liveProvider != null)
-        if (liveProvider == null) {
-          activateTestIde(installedApplication)
-          ideFrame { toFront() }
-          invokeAction("ShowSettings", now = false)
-          ideFrame {
-            settingsDialog {
-              com.intellij.driver.sdk.waitFor("settings dialog opened", 30.seconds) { present() }
-              settingsTree.expandPath("Tools")
-              val settingsRow = requireNotNull(settingsTree.findExpandedPath("Tools", "Claude/Codex Sub Autocomplete", fullMatch = true))
-              driver.withContext(OnDispatcher.EDT) {
-                cast(settingsTree.component, SettingsTreeRef::class).setSelectionRow(settingsRow.row)
+          println("Installed compatibility target: $productVersion")
+          trialBootstrap?.assertCandidateReady(this)
+          if (liveProvider == null) {
+            withContext(OnDispatcher.EDT) {
+              val settings = service(InstalledAutocompleteSettingsRef::class)
+              val state = settings.snapshot()
+              check(state.getEnabled() && !state.getManualOnly() && state.getAutomaticEngine() == "SELECTED_SUBSCRIPTION") {
+                "A fresh installation must enable automatic subscription completion without saved settings"
               }
-              content { waitContainsText("Enable Claude/Codex completions") }
-              takeScreenshot("compatibility-$productCode-settings")
-              cancelButton.click()
+              println("Fresh installation: enabled=true; manualOnly=false; automaticEngine=SELECTED_SUBSCRIPTION; no prewritten plugin settings")
+              // Configure only the fixture provider; retain the actual first-install automatic choice.
+              state.setProvider(provider.name)
+              state.setClaudeExecutable(executable.absolutePathString())
+              settings.loadState(state)
             }
+          }
+          val terminalsOnly = System.getProperty("ideTest.terminalsOnly", "false").toBoolean()
+          val reworkedOnly = System.getProperty("ideTest.reworkedOnly", "false").toBoolean()
+          // A cold isolated IDE can expose services before its project frame is rendered.
+          waitFor("installed IDE frame ready", 120.seconds) { ideFrame().present() }
+          waitFor("installed IDE project initialized", 120.seconds) {
+            getOpenProjects().singleOrNull()?.let { it.isOpen() && it.isInitialized() } == true
+          }
+          // Terminal input does not depend on indexing a fresh SDK/project.
+          if (!terminalsOnly && !reworkedOnly) waitForIndicators(5.minutes)
+          activateTestIde(installedApplication)
+          ideFrame {
+            toFront()
+            ideStatusBar {
+              val expectedActivity = if (liveProvider != null) "AI ⌨ hotkey" else "AI ○ idle"
+              val expectedProvider = if (provider == ProviderKind.CLAUDE) "Claude" else "Codex"
+              // Status widgets can be installed late during cold IDE initialization.
+              waitFor("installed plugin status widget ready", 5.minutes) {
+                widgetStatusBarPanel.widgets.list().any { it.text.startsWith("$expectedActivity · $expectedProvider") }
+              }
+            }
+          }
+          takeScreenshot("compatibility-$productCode-ready")
+          if (!terminalsOnly && !reworkedOnly) {
+            if (liveProvider == null) Files.writeString(terminalFixture.editorLoadingGate, "hold fixture response until loading capture\n")
+            try {
+              exerciseInstalledTyping(liveProvider != null, terminalFixture.editorLoadingGate)
+            } finally {
+              Files.deleteIfExists(terminalFixture.editorLoadingGate)
+            }
+          }
+          if (liveProvider == null) {
+            if (!reworkedOnly) exerciseInstalledTerminal(installedApplication, terminalFixture)
+            exerciseInstalledReworkedTerminal(installedApplication, terminalFixture)
+          }
+          if (liveProvider == null && !reworkedOnly && !terminalsOnly) {
+            activateTestIde(installedApplication)
+            ideFrame { toFront() }
+            invokeAction("ShowSettings", now = false)
+            ideFrame {
+              settingsDialog {
+                com.intellij.driver.sdk.waitFor("settings dialog opened", 30.seconds) { present() }
+                settingsTree.expandPath("Tools")
+                val settingsRow = requireNotNull(settingsTree.findExpandedPath("Tools", "Claude/Codex Sub Autocomplete", fullMatch = true))
+                driver.withContext(OnDispatcher.EDT) {
+                  cast(settingsTree.component, SettingsTreeRef::class).setSelectionRow(settingsRow.row)
+                }
+                content { waitContainsText("Enable Claude/Codex completions") }
+                takeScreenshot("compatibility-$productCode-settings")
+                cancelButton.click()
+              }
+            }
+          }
+          if (liveProvider == null) {
+            scheduledRestart = scheduleInstalledPluginRestart(pluginPath, pluginHash, firstTestHome)
           }
         }
       }
+      scheduledRestart?.let { scheduled ->
+        lateinit var after: InstalledProcessIdentity
+        lateinit var terminalEvidence: RestartTerminalEvidence
+        InstalledIdeRuntimeLogGate.afterIdeShutdown(
+          secondTestHome.resolve("log"),
+          expectedIdeBuild = "$productCode-${System.getProperty("ideTest.expectedBuild")}",
+        ) {
+          ideContext.runIdeWithDriver(runTimeout = 8.minutes, launchName = "after-restart").useDriverAndCloseIde {
+            trialBootstrap?.assertCandidateReady(this)
+            waitFor("restarted IDE project frame", 120.seconds) { ideFrame().present() }
+            // The restored frame is visible before ProjectManager publishes the project.
+            waitFor("restarted IDE project initialized", 120.seconds) {
+              getOpenProjects().singleOrNull()?.let { it.isOpen() && it.isInitialized() } == true
+            }
+            val reopenedProject = Path.of(requireNotNull(singleProject().getBasePath()))
+            // macOS can expose the same temporary project through /var and /private/var.
+            check(Files.isSameFile(reopenedProject, projectPath)) { "Restart must reopen the same project" }
+            after = verifyInstalledPluginAfterRestart(scheduled, secondTestHome)
+            waitForIndicators(5.minutes)
+            activateTestIde(installedApplication)
+            ideFrame {
+              toFront()
+              ideStatusBar {
+                waitFor("restarted plugin status widget", 2.minutes) {
+                  widgetStatusBarPanel.widgets.list().any { it.text.startsWith("AI ○ idle · Claude") }
+                }
+              }
+            }
+            takeScreenshot("compatibility-$productCode-restart-ready")
+            terminalEvidence = exerciseInstalledTerminal(installedApplication, terminalFixture, restartOnly = true)
+          }
+        }
+        // Emit acceptance evidence only after both IDE processes have closed and
+        // both complete runtime logs passed the unchanged strict error gate.
+        emitInstalledRestartEvidence(scheduled, after, secondTestHome, terminalEvidence)
+      }
+    } finally {
+      scheduledRestart?.close()
     }
   }
 
@@ -308,7 +382,7 @@ class InstalledPluginSmokeTest {
     )
   }
 
-  private fun com.intellij.driver.client.Driver.exerciseInstalledTyping(live: Boolean) {
+  private fun com.intellij.driver.client.Driver.exerciseInstalledTyping(live: Boolean, editorLoadingGate: Path) {
     val project = singleProject()
     val repetitions = if (live) 1 else System.getProperty("ideTest.repetitions", "3").toInt().coerceIn(1, 3)
     repeat(repetitions) { repetition ->
@@ -331,7 +405,7 @@ class InstalledPluginSmokeTest {
           val physicalTypingAvailable = externalEditorInput || (requirePhysicalTyping && editor.isFocusOwner())
           val physicalAcceptanceAvailable = physicalTypingAvailable && !externalEditorInput
           check(physicalTypingAvailable || !requirePhysicalTyping) {
-            "Physical typing requires macOS Accessibility/input focus for the launched IntelliJ process"
+            "Physical typing requires keyboard focus for the launched IDE on its test display"
           }
           val diagnosticsBeforeTyping = if (automatic) {
             service(ClassicPluginDiagnosticsLogRef::class).snapshot().map { it.toString() }.toSet()
@@ -362,6 +436,29 @@ class InstalledPluginSmokeTest {
             component = editor.component,
             place = "SubscriptionAutocompleteIdeTest",
           )
+          if (automatic) {
+            waitFor("automatic completion visibly generating", 10.seconds) {
+              var generating = false
+              ideStatusBar {
+                generating = widgetStatusBarPanel.widgets.list().any { "generating" in it.text }
+              }
+              generating && inlineCompletionText(editor, case.prefix.length + case.typed.length).isEmpty()
+            }
+            check(documentsEqual(editor.text, case.prefix + case.typed + case.suffix)) {
+              "Loading must retain the user's typed text"
+            }
+            takeScreenshot("compatibility-$productCode-${case.fileName}-loading")
+            var stillGenerating = false
+            ideStatusBar {
+              stillGenerating = widgetStatusBarPanel.widgets.list().any { "generating" in it.text }
+            }
+            check(stillGenerating && inlineCompletionText(editor, case.prefix.length + case.typed.length).isEmpty() &&
+              documentsEqual(editor.text, case.prefix + case.typed + case.suffix)) {
+              "The fixture must remain generating with unchanged text throughout the loading capture"
+            }
+            Files.delete(editorLoadingGate)
+            println("Automatic fixture ${case.fileName}: generating state captured before ghost text; typed content preserved")
+          }
           if (!live) takeScreenshot("compatibility-$productCode-${case.fileName}-requested")
           com.intellij.driver.sdk.waitFor(
             "inline completion for ${case.fileName}",
@@ -392,7 +489,7 @@ class InstalledPluginSmokeTest {
             documentsEqual(editor.text, case.prefix + case.typed + case.suffix),
             "Suggestion was inserted into ${case.fileName} before acceptance",
           )
-          if (!live) {
+          if (!live && !automatic) {
             invokeAction("EditorEscape", now = true, component = editor.component)
             com.intellij.driver.sdk.waitFor("dismissed completion in ${case.fileName}", 5.seconds) {
               inlineCompletionText(editor, case.prefix.length + case.typed.length).isEmpty()
@@ -425,6 +522,10 @@ class InstalledPluginSmokeTest {
             "accepted completion for ${case.fileName}",
             5.seconds,
           ) { documentsEqual(editor.text, expected) }
+          if (automatic) {
+            println("Automatic fixture ${case.fileName}: initial automatic suggestion accepted directly; " +
+              "acceptance: ${if (physicalAcceptanceAvailable) "physical Tab" else "IDE API"}")
+          }
           println(
             "${if (live) "Live" else "Fixture"} ${case.fileName}: ghost text displayed; " +
               "explicit acceptance preserved surrounding text; physical typing: $physicalTypingAvailable; " +
@@ -456,7 +557,8 @@ class InstalledPluginSmokeTest {
       val commandJson = com.google.gson.Gson().toJson(terminalFixture.command).removeSurrounding("\"")
       Files.writeString(executable, template
         .replace("@TERMINAL_COMMAND_JSON@", shellQuote(commandJson))
-        .replace("@TERMINAL_REQUEST_LOG@", shellQuote(terminalFixture.requestLog.toString())))
+        .replace("@TERMINAL_REQUEST_LOG@", shellQuote(terminalFixture.requestLog.toString()))
+        .replace("@EDITOR_LOADING_GATE@", shellQuote(terminalFixture.editorLoadingGate.toString())))
     }
     Files.setPosixFilePermissions(
       executable,
@@ -575,6 +677,11 @@ internal interface InstalledAutocompleteSettingsStateRef {
   fun getEnabled(): Boolean
   fun getManualOnly(): Boolean
   fun getAutomaticEngine(): String
+  fun getProvider(): String
+  fun getClaudeExecutable(): String
+  fun getTerminalCompletionsEnabled(): Boolean
+  fun getDebounceMs(): Int
+  fun setDebounceMs(value: Int)
   fun setProvider(provider: String)
   fun setClaudeExecutable(executable: String)
 }

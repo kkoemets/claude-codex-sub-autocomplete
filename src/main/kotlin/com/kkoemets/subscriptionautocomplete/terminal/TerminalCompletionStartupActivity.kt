@@ -55,11 +55,13 @@ internal class TerminalWidgetTabInstaller(
         return handled
       }
     }
-    IdeEventQueue.getInstance().addDispatcher(dispatcher, project)
+    // A project survives dynamic plugin reload. Its callbacks must instead be
+    // children of this plugin service, or the old class loader keeps handling Tab.
+    IdeEventQueue.getInstance().addDispatcher(dispatcher, service)
 
     manager.addNewTerminalSetupHandler(
       { terminal -> terminalRegistered(terminal) },
-      project,
+      service,
     )
     DiagnosticsLog.getInstance().info(
       "Terminal Tab integration attached",
