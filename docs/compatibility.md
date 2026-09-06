@@ -58,6 +58,10 @@ The post-shutdown log scans found no plugin-attributed errors. Unrelated records
 
 All eight Plugin Verifier targets were compatible. Each reported 4 deprecated and 41 experimental API usages; these remain maintenance risks as platform APIs evolve.
 
+These are the historical results for the published 0.6.4 ZIP. Subsequent releases
+must pass the stricter [API stability policy](api-stability.md): zero deprecated
+API usages, with experimental integrations retained and documented separately.
+
 ## Coverage limits
 
 - Installed-product checks use a fixture provider. They verify IDE integration and do not measure authenticated model quality. Earlier live-provider results belong to earlier artifacts and are not fresh live-model evidence for this ZIP.

@@ -161,6 +161,8 @@ class InstalledPluginSmokeTest {
         }
         val terminalsOnly = System.getProperty("ideTest.terminalsOnly", "false").toBoolean()
         val reworkedOnly = System.getProperty("ideTest.reworkedOnly", "false").toBoolean()
+        // A cold isolated IDE can expose services before its project frame is rendered.
+        waitFor("installed IDE frame ready", 120.seconds) { ideFrame().present() }
         // Terminal input does not depend on indexing a fresh SDK/project.
         if (!terminalsOnly && !reworkedOnly) waitForIndicators(5.minutes)
         activateTestIde(installedApplication)
@@ -169,7 +171,8 @@ class InstalledPluginSmokeTest {
           ideStatusBar {
             val expectedActivity = if (liveProvider != null) "AI ⌨ hotkey" else "AI ○ idle"
             val expectedProvider = if (provider == ProviderKind.CLAUDE) "Claude" else "Codex"
-            waitFor("installed plugin status widget ready", 60.seconds) {
+            // Status widgets can be installed late during cold IDE initialization.
+            waitFor("installed plugin status widget ready", 5.minutes) {
               widgetStatusBarPanel.widgets.list().any { it.text.startsWith("$expectedActivity · $expectedProvider") }
             }
           }

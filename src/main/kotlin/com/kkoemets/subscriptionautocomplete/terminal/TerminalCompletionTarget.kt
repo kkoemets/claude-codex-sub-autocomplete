@@ -35,7 +35,7 @@ internal class ClassicTerminalCompletionTarget(
 ) : TerminalCompletionTarget {
   override val identity: Any get() = widget
   private val shell = ShellTerminalWidget.asShellJediTermWidget(widget)
-  private val starter = shell?.terminalStarter
+  private val output = shell?.terminalPanel?.terminalOutputStream
   private val modelRevision = AtomicLong()
 
   override fun captureInput(): TerminalCommandInput? {
@@ -43,7 +43,7 @@ internal class ClassicTerminalCompletionTarget(
     val before = revision.get()
     val modelBefore = modelRevision.get()
     val shell = shell ?: return null
-    if (starter == null || shell.terminalStarter !== starter) return null
+    if (output == null || shell.terminalPanel.terminalOutputStream !== output) return null
     val text = readInput(widget) ?: return null
     val description = TerminalCommandTrigger.extract(text) ?: return null
     return TerminalCommandInput(text, description, before, modelBefore)
@@ -66,9 +66,9 @@ internal class ClassicTerminalCompletionTarget(
 
   override fun sendText(text: String) {
     ApplicationManager.getApplication().assertIsDispatchThread()
-    check(starter != null && shell?.terminalStarter === starter) { "Terminal session changed before insertion" }
+    check(output != null && shell?.terminalPanel?.terminalOutputStream === output) { "Terminal session changed before insertion" }
     // Use the terminal's input queue, never a future connector callback or blocking EDT write.
-    starter.sendString(text, false)
+    output.sendString(text, false)
   }
 
   override fun sendIfCurrent(input: TerminalCommandInput, text: String): Boolean {
@@ -85,9 +85,9 @@ internal class ClassicTerminalCompletionTarget(
     ApplicationManager.getApplication().assertIsDispatchThread()
     // Program output may redraw while the probe runs. Native Tab only depends on
     // the original session, keyboard focus, and user-input ordering, not output text.
-    if (shell == null || revision.get() != input.revision || starter == null || shell.terminalStarter !== starter ||
+    if (shell == null || revision.get() != input.revision || output == null || shell.terminalPanel.terminalOutputStream !== output ||
       !TerminalInputFocus.isFocused(shell.terminalPanel)) return false
-    starter.sendString("\t".repeat(count), false)
+    output.sendString("\t".repeat(count), false)
     return true
   }
 

@@ -34,6 +34,27 @@ class TerminalCommandSupportTest {
   }
 
   @Test
+  fun `replacement API with no directory never invokes the deprecated fallback`() {
+    for (flow in listOf(null, FakeValueFlow(null), FakeValueFlow(""), FakeValueFlow("  "))) {
+      val terminal = TerminalWithWorkingDirectoryFlow(flow)
+      assertNull(TerminalCompletionService.TerminalWorkingDirectory.resolve(terminal))
+      assertEquals(0, terminal.legacyReads)
+    }
+  }
+
+  @Test
+  fun `replacement API failures never invoke the deprecated fallback`() {
+    val terminals = listOf(
+      TerminalWithWorkingDirectoryFlow(null, failRead = true),
+      TerminalWithWorkingDirectoryFlow(FakeValueFlow(null, failRead = true)),
+    )
+    for (terminal in terminals) {
+      assertNull(TerminalCompletionService.TerminalWorkingDirectory.resolve(terminal))
+      assertEquals(0, terminal.legacyReads)
+    }
+  }
+
+  @Test
   fun `trigger accepts only a bounded one-line request at command start`() {
     assertEquals("list TypeScript files", TerminalCommandTrigger.extract("# list TypeScript files"))
     assertEquals("show git status", TerminalCommandTrigger.extract("   #show git status"))
@@ -204,13 +225,26 @@ class TerminalCommandSupportTest {
     assertEquals("", TerminalCommandSanitizer.sanitize(oversized, 16))
   }
 
-  private class FakeValueFlow(private val value: Any?) {
-    fun getValue(): Any? = value
+  private class FakeValueFlow(private val value: Any?, private val failRead: Boolean = false) {
+    fun getValue(): Any? {
+      check(!failRead) { "Flow value unavailable" }
+      return value
+    }
   }
 
-  private class TerminalWithWorkingDirectoryFlow(private val flow: FakeValueFlow) {
-    fun getWorkingDirectoryFlow(): FakeValueFlow = flow
-    fun getCurrentDirectory(): String = "/workspace/fallback"
+  private class TerminalWithWorkingDirectoryFlow(
+    private val flow: FakeValueFlow?,
+    private val failRead: Boolean = false,
+  ) {
+    var legacyReads = 0
+    fun getWorkingDirectoryFlow(): FakeValueFlow? {
+      check(!failRead) { "Flow unavailable" }
+      return flow
+    }
+    fun getCurrentDirectory(): String {
+      legacyReads++
+      return "/workspace/fallback"
+    }
   }
 
   private class TerminalWithCurrentDirectory(private val directory: String) {

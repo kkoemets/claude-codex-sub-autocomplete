@@ -41,6 +41,13 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    ./gradlew clean autocompleteReleaseGate --no-daemon
    ```
 
+   Deprecated and scheduled-for-removal APIs are release blockers, even when the
+   verifier says the plugin is binary-compatible. Every verifier failure category
+   except experimental API usages is fatal. Retained experimental terminal and
+   manual-completion integrations are documented in
+   [the API stability policy](docs/api-stability.md). Review their findings rather
+   than interpreting a passing gate as a future-compatibility guarantee.
+
 4. Run installed-plugin fixtures against the exact release ZIP. On a shared host,
    use the isolated Linux display so the tests cannot take host keyboard focus:
 
@@ -152,8 +159,8 @@ For Gradle publication to the public default channel, use:
 ```
 
 The configured publishing task uses `PUBLISH_TOKEN`, channel `default`, and
-`hidden=false`. Reuse the verified artifact; a newly built or signed ZIP needs its
-own identity checks before submission.
+`hidden=false`, and depends on the full headless release gate. Reuse the verified
+artifact; a newly built or signed ZIP needs its own identity checks before submission.
 
 An accepted upload is submitted for Marketplace review; it is not yet a public
 release. Record the update ID and check its version, plugin ID, compatibility,

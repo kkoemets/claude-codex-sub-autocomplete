@@ -2,6 +2,12 @@
 
 All notable user-facing changes are documented here.
 
+## Unreleased
+
+- Replace the deprecated Classic-terminal input getter while preserving queued input, session-change rejection, and native Tab ordering.
+- Prevent unavailable working-directory flow values from falling back to a deprecated getter on newer terminal APIs; retain the non-deprecated older API on supported IDEs that still use it.
+- Block releases on deprecated APIs and all other verifier failure categories except the documented experimental integrations. Require the full headless gate before Gradle publication.
+
 ## 0.6.4 — Early Access
 
 - Enable automatic completion from the selected subscription on first installation while preserving saved automatic/manual and disabled settings.

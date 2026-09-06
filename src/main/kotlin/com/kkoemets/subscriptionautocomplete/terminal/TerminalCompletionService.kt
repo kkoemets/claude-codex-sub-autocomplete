@@ -301,24 +301,27 @@ class TerminalCompletionService(
 
   /**
    * IntelliJ 262 replaces TerminalView.getCurrentDirectory() with workingDirectoryFlow.
-   * Resolve both shapes without a binary reference to either method so one artifact can
-   * continue to support the 253 baseline and newer Terminal implementations.
+   * The old getter is used only on the older API shape where it is not deprecated.
+   * A missing value or failed read from the replacement must not invoke the old getter.
    */
   internal object TerminalWorkingDirectory {
-    fun resolve(terminal: Any): String? =
-      invokeNoArgs(terminal, "getWorkingDirectoryFlow")
-        ?.let { invokeNoArgs(it, "getValue") }
-        ?.toString()
-        ?.takeIf(String::isNotBlank)
-        ?: invokeNoArgs(terminal, "getCurrentDirectory")
-          ?.toString()
-          ?.takeIf(String::isNotBlank)
+    fun resolve(terminal: Any): String? = runCatching {
+      val replacement = findNoArgs(terminal, "getWorkingDirectoryFlow")
+      val directory = if (replacement != null) {
+        replacement.invoke(terminal)?.let { invokeNoArgs(it, "getValue") }
+      } else {
+        invokeNoArgs(terminal, "getCurrentDirectory")
+      }
+      directory?.toString()?.takeIf(String::isNotBlank)
+    }.getOrNull()
 
     private fun invokeNoArgs(target: Any, name: String): Any? = runCatching {
-      target.javaClass.methods.firstOrNull { method ->
-        method.name == name && method.parameterCount == 0
-      }?.invoke(target)
+      findNoArgs(target, name)?.invoke(target)
     }.getOrNull()
+
+    private fun findNoArgs(target: Any, name: String) = target.javaClass.methods.firstOrNull { method ->
+      method.name == name && method.parameterCount == 0
+    }
   }
 
   private fun observe(

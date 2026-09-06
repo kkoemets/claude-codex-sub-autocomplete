@@ -97,7 +97,7 @@ private fun Driver.printClassicInputDiagnostics(
       val panel = shell.getTerminalPanel()
       val owner = utility(KeyboardFocusManagerRef::class).getCurrentKeyboardFocusManager().getFocusOwner()
       val ownerClass = owner?.let { cast(it.getClass(), RuntimeClassRef::class).getName() }
-      "starterPresent=${shell.getTerminalStarter() != null}; widgetHasFocus=${widget.hasFocus()}; " +
+      "outputStreamPresent=${panel.getTerminalOutputStream() != null}; widgetHasFocus=${widget.hasFocus()}; " +
         "shellHasFocus=${shell.hasFocus()}; shellIsFocusOwner=${shell.isFocusOwner()}; " +
         "panelHasFocus=${panel.hasFocus()}; panelIsFocusOwner=${panel.isFocusOwner()}; " +
         "focusOwnerClass=$ownerClass"
@@ -277,19 +277,19 @@ internal interface ClassicShellTerminalWidgetRef {
   fun getTerminal(): ClassicTerminalCursorRef
   fun getTerminalTextBuffer(): ClassicTerminalTextBufferRef
   fun getTerminalPanel(): ClassicTerminalPanelRef
-  fun getTerminalStarter(): ClassicTerminalStarterRef?
   fun hasFocus(): Boolean
   fun isFocusOwner(): Boolean
 }
 
 @Remote("com.jediterm.terminal.ui.TerminalPanel")
 internal interface ClassicTerminalPanelRef {
+  fun getTerminalOutputStream(): ClassicTerminalOutputStreamRef?
   fun hasFocus(): Boolean
   fun isFocusOwner(): Boolean
 }
 
-@Remote("com.jediterm.terminal.TerminalStarter")
-internal interface ClassicTerminalStarterRef
+@Remote("com.jediterm.terminal.TerminalOutputStream")
+internal interface ClassicTerminalOutputStreamRef
 
 @Remote("com.kkoemets.subscriptionautocomplete.terminal.TerminalCompletionService", plugin = "com.kkoemets.subscriptionautocomplete")
 internal interface ClassicTerminalCompletionServiceDiagnosticsRef {

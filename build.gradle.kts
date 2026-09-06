@@ -1,6 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginSignatureTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
   id("java")
@@ -70,6 +71,11 @@ intellijPlatform {
   }
 
   pluginVerification {
+    // Experimental terminal/manual-completion integrations are documented in docs/api-stability.md.
+    // Deprecated APIs and every other verifier failure category block release.
+    failureLevel.set(VerifyPluginTask.FailureLevel.ALL.filterNot {
+      it == VerifyPluginTask.FailureLevel.EXPERIMENTAL_API_USAGES
+    })
     ides {
       create(
         IntelliJPlatformType.IntellijIdeaUltimate,
@@ -627,6 +633,7 @@ tasks.named<VerifyPluginSignatureTask>("verifyPluginSignature") {
 }
 
 tasks.named("publishPlugin") {
+  dependsOn(tasks.named("autocompleteReleaseGate"))
   doFirst {
     check(!System.getenv("PUBLISH_TOKEN").isNullOrBlank()) {
       "PUBLISH_TOKEN is required to publish to JetBrains Marketplace"
