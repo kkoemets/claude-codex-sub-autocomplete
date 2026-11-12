@@ -419,12 +419,13 @@ class InstalledPluginSmokeTest {
               editor.text == expectedAfterTyping
             }
           } else if (physicalTypingAvailable) {
-            val beforePhysicalTyping = editor.text
             case.typed.forEach(editor.robot::type)
+            // Robot keystrokes are queued; waiting only for the first change raced the rest of
+            // them on IDEA 2026.3, so wait until every typed character has been applied.
             com.intellij.driver.sdk.waitFor(
               "physical typing in ${case.fileName}",
-              5.seconds,
-            ) { editor.text != beforePhysicalTyping }
+              10.seconds,
+            ) { editor.text.startsWith(case.prefix + case.typed) }
           } else {
             editor.text = case.prefix + case.typed + case.suffix
             editor.moveCaretToOffset(case.prefix.length + case.typed.length)
