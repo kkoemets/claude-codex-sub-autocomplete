@@ -6,7 +6,7 @@ One plugin ZIP supports these products:
 | --- | --- |
 | IntelliJ IDEA | 2025.3 and newer |
 | PyCharm | 2025.3 and newer |
-| Android Studio | Quail 4 (2026.1.4) |
+| Android Studio | Rabbit 2 (2026.2.2) |
 
 The bundled Terminal plugin must be enabled. The plugin requires Java 21 or newer
 and IntelliJ Platform build 253 or newer; the IDE's bundled runtime is recommended.

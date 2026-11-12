@@ -6,7 +6,7 @@
   <a href="https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/kkoemets/claude-codex-sub-autocomplete?display_name=tag&amp;sort=semver"></a>
   <img alt="IntelliJ IDEA 2025.3 or newer" src="https://img.shields.io/badge/IntelliJ_IDEA-2025.3%2B-5757D9">
   <img alt="PyCharm 2025.3 or newer" src="https://img.shields.io/badge/PyCharm-2025.3%2B-21D789">
-  <img alt="Android Studio Quail 4 (2026.1.4)" src="https://img.shields.io/badge/Android_Studio-Quail_4-3DDC84">
+  <img alt="Android Studio Rabbit 2 (2026.2.2)" src="https://img.shields.io/badge/Android_Studio-Rabbit_2-3DDC84">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2F855A"></a>
   <img alt="No telemetry" src="https://img.shields.io/badge/telemetry-none-4A5568">
 </p>
@@ -55,7 +55,7 @@ Claude Code and Codex are excellent at understanding code, but their agent inter
 One signed ZIP supports IntelliJ IDEA, PyCharm, and Android Studio.
 See [IDE compatibility](docs/compatibility.md) for supported versions and update requirements.
 
-- IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4).
+- IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Rabbit 2 (2026.2.2).
 - The IDE's bundled Java runtime (Java 21 or newer).
 - The bundled Terminal plugin enabled.
 - Claude Code or Codex CLI installed and authenticated through a supported subscription.
@@ -78,7 +78,7 @@ API-key authentication is intentionally rejected. A connection test reports when
 
 ## Install in 60 seconds
 
-1. Download the signed ZIP from [release 0.6.5](https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/tag/v0.6.5).
+1. Download the signed ZIP from [release 0.6.6](https://github.com/kkoemets/claude-codex-sub-autocomplete/releases/tag/v0.6.6).
 2. Open **Settings → Plugins → gear icon → Install Plugin from Disk**.
 3. Select the ZIP and restart your IDE.
 4. Open **Settings → Tools → Claude/Codex Sub Autocomplete**.

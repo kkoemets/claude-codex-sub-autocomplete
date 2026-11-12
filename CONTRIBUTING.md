@@ -14,7 +14,7 @@ Thanks for helping improve Claude/Codex Sub Autocomplete.
 Requirements:
 
 - JDK 21
-- for interactive plugin checks: IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4); see the [compatibility record](docs/compatibility.md) for maintained test targets
+- for interactive plugin checks: IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Rabbit 2 (2026.2.2); see the [compatibility record](docs/compatibility.md) for maintained test targets
 - the repository's Gradle wrapper
 
 Run the fast checks with:

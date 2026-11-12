@@ -6,7 +6,7 @@ uses your selected subscription and does not require a separate API key.
 
 ## Before you start
 
-Use IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4),
+Use IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Rabbit 2 (2026.2.2),
 with the bundled Terminal plugin enabled and Java 21 or newer. The IDE's bundled
 runtime is recommended.
 
@@ -57,8 +57,8 @@ command execution are disabled. Common credential patterns are redacted before
 requests are sent; diagnostics record operational metadata instead of source or
 prompts.
 
-Read the [Privacy Policy](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.5/PRIVACY.md)
-and [End User License Agreement](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.5/EULA.md).
+Read the [Privacy Policy](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.6/PRIVACY.md)
+and [End User License Agreement](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.6/EULA.md).
 
 ## Limitations and troubleshooting
 
@@ -81,6 +81,6 @@ exception that can appear while typing, including with this plugin absent.
 Report other unexpected IDE errors with privacy-safe diagnostic details.
 
 For supported versions and API limitations, see
-[IDE compatibility](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.5/docs/compatibility.md).
+[IDE compatibility](https://github.com/kkoemets/claude-codex-sub-autocomplete/blob/v0.6.6/docs/compatibility.md).
 For help, read the [full documentation](https://github.com/kkoemets/claude-codex-sub-autocomplete#readme)
 or [open an issue](https://github.com/kkoemets/claude-codex-sub-autocomplete/issues).
