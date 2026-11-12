@@ -20,7 +20,7 @@ body:
     attributes:
       label: IDE product, version, and build number
       description: Specify IntelliJ IDEA, PyCharm, or Android Studio. Copy the version and build number from Help → About.
-      placeholder: PyCharm 2026.2.1 (PY-262.9437.214)
+      placeholder: PyCharm 2026.3 (PY-263.7307.206)
     validations:
       required: true
   - type: dropdown

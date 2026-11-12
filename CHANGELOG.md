@@ -2,8 +2,9 @@
 
 All notable user-facing changes are documented here.
 
-## Unreleased
+## 0.6.6 — Early Access
 
+- Maintain IntelliJ IDEA 2026.3, PyCharm 2026.3 and Android Studio Rabbit 2 (2026.2.2) as release targets.
 - Fix "Invalid JSON provided to --settings" on Windows ([#3](https://github.com/kkoemets/claude-codex-sub-autocomplete/issues/3)). Windows dropped the quotes inside the inline settings JSON. Settings and the system prompt now reach Claude Code as files, and every provider process is started with IntelliJ's own Windows argument escaping. This covers native `claude.exe` and npm's `claude.cmd`.
 - Find Windows installations reliably. Prefer `claude.exe` over npm's `.cmd` shim and never pick npm's extensionless shell script. Search the npm, WinGet and per-user install folders, and accept paths pasted with quotes.
 - Report a Claude Code that cannot start, or that answers slowly, as such instead of "not signed in". Tell users to update an outdated Claude Code that rejects an option.

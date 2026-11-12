@@ -19,7 +19,7 @@
     a proxy or telemetry service. Provider tools, project inspection, file writes, and command execution
     are disabled. Terminal commands are inserted but never executed. Common credential patterns are redacted
     before requests are sent.</p>
-    <p><b>Requirements:</b> IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Quail 4 (2026.1.4),
+    <p><b>Requirements:</b> IntelliJ IDEA or PyCharm 2025.3 or newer, or Android Studio Rabbit 2 (2026.2.2),
     the bundled Terminal plugin, Java 21 or newer, and an installed and authenticated
     Claude Code or Codex CLI.</p>
     <p>Plugin installation, updates, and removal require an IDE restart.</p>
@@ -29,6 +29,16 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>0.6.6 — Early Access</h3>
+    <ul>
+      <li>Fixes "Invalid JSON provided to --settings" with Claude Code on Windows, for both claude.exe and npm's claude.cmd.</li>
+      <li>Finds Windows installations of Claude Code and Codex more reliably and reports a CLI that cannot start instead of "not signed in".</li>
+      <li>Defaults Claude to Claude Haiku 5.5 and offers only models the subscriptions currently serve; retired Codex selections move to GPT-5.6 Luna.</li>
+      <li>Clears the terminal request line correctly in Windows PowerShell and cmd.</li>
+      <li>Keeps valid code that the cleanup step used to cut, and no longer shows a model's reasoning as a suggestion.</li>
+      <li>Redacts more credential formats while leaving ordinary code before the caret unchanged.</li>
+      <li>Fixes Codex app-server shutdown and cancellation, comment-driven implementations on indented lines, and the hotkey waiting for the typing delay.</li>
+    </ul>
     <h3>0.6.5 — Early Access</h3>
     <ul>
       <li>Requires an IDE restart for plugin installation, updates, and removal to avoid unsafe dynamic reloads.</li>

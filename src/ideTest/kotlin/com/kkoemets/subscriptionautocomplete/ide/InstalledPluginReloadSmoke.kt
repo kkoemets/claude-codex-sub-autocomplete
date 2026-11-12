@@ -65,7 +65,7 @@ internal fun Driver.scheduleInstalledPluginRestart(
     val version = withContext(OnDispatcher.IO) {
       val installed = requireNotNull(utility(ReloadPluginManagerRef::class).findPlugin(pluginId))
       check(installed.isRequireRestart()) { "Candidate descriptor must require an IDE restart" }
-      check(!utility(ReloadDynamicPluginsRef::class).allowLoadUnloadWithoutRestart(installed)) {
+      check(!restartFreeModificationAllowed(installed)) {
         "The standard platform validator must reject restart-free modification"
       }
       val installedPath = installed.getPluginPath()
@@ -209,6 +209,20 @@ internal interface ReloadClassLoaderRef
 
 @Remote("com.intellij.ide.plugins.DynamicPlugins")
 internal interface ReloadDynamicPluginsRef { fun allowLoadUnloadWithoutRestart(descriptor: ReloadPluginDescriptorRef): Boolean }
+
+/** Build 263 replaced the static validator with an instance method on the DynamicPlugins object. */
+@Remote("com.intellij.ide.plugins.DynamicPlugins")
+internal interface ReloadDynamicPluginsObjectRef { fun checkCanUnloadWithoutRestart(descriptor: ReloadPluginDescriptorRef): Boolean }
+
+private fun Driver.restartFreeModificationAllowed(installed: ReloadPluginDescriptorRef): Boolean {
+  val buildMajor = System.getProperty("ideTest.expectedBuild").orEmpty().substringBefore('.').toIntOrNull()
+    ?: error("ideTest.expectedBuild is required to select the platform restart validator")
+  return if (buildMajor >= 263) {
+    utility(ReloadDynamicPluginsObjectRef::class).checkCanUnloadWithoutRestart(installed)
+  } else {
+    utility(ReloadDynamicPluginsRef::class).allowLoadUnloadWithoutRestart(installed)
+  }
+}
 
 @Remote("com.intellij.ide.plugins.PluginInstaller")
 internal interface ReloadPluginInstallerRef {
