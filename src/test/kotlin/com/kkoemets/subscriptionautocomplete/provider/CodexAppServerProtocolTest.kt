@@ -97,4 +97,71 @@ class CodexAppServerProtocolTest {
 
     assertEquals("insert me", CodexAppServerProtocol.finalAgentText(turn))
   }
+
+  @Test
+  fun `events that arrive before the turn is registered are replayed`() {
+    val registry = TurnRegistry()
+
+    // The reader thread sees these while the requesting thread is still parsing the turn/start response.
+    assertFalse(registry.append("turn-1", "val x"))
+    assertFalse(registry.append("turn-1", " = 1"))
+    assertFalse(registry.complete("turn-1", "", "completed", null))
+    val accumulator = TurnAccumulator(64)
+    registry.register("turn-1", accumulator)
+
+    assertEquals("completed", accumulator.ready.get().status)
+    assertTrue(accumulator.ready.get().serverTerminal)
+    assertEquals("val x = 1", accumulator.text())
+  }
+
+  @Test
+  fun `an early failure is delivered instead of timing out`() {
+    val registry = TurnRegistry()
+
+    registry.complete("turn-1", "", "failed", "model overloaded")
+    val accumulator = TurnAccumulator(64)
+    registry.register("turn-1", accumulator)
+
+    assertEquals("failed", accumulator.ready.get().status)
+    assertEquals("model overloaded", accumulator.ready.get().error)
+  }
+
+  @Test
+  fun `early events for turns that never register stay bounded`() {
+    val registry = TurnRegistry()
+
+    repeat(1_000) { turn -> repeat(1_000) { registry.append("orphan-$turn", "x") } }
+    val accumulator = TurnAccumulator(100_000)
+    registry.register("orphan-0", accumulator)
+    registry.register("orphan-999", TurnAccumulator(100_000).also { latest ->
+      registry.complete("orphan-999", "", "completed", null)
+      assertTrue(latest.text().length <= 256)
+    })
+
+    assertEquals("", accumulator.text())
+  }
+
+  @Test
+  fun `forgotten turns do not replay stale early events`() {
+    val registry = TurnRegistry()
+
+    registry.append("turn-1", "stale")
+    registry.forget("turn-1", ignoreLateEvents = false)
+    val accumulator = TurnAccumulator(64)
+    registry.register("turn-1", accumulator)
+
+    assertEquals("", accumulator.text())
+  }
+
+  @Test
+  fun `unexpected item shapes do not throw while extracting the final message`() {
+    listOf(
+      """{}""",
+      """{"items":null}""",
+      """{"items":{}}""",
+      """{"items":[null,1,"text",{"type":null,"text":"a"},{"type":"agentMessage","text":null}]}""",
+    ).forEach { json ->
+      assertEquals("", CodexAppServerProtocol.finalAgentText(JsonParser.parseString(json).asJsonObject), json)
+    }
+  }
 }

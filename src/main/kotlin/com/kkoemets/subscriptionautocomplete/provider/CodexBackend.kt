@@ -28,9 +28,16 @@ class CodexBackend : CompletionBackend, AutoCloseable {
         return@runInterruptible BackendResult.Failure(authError)
       }
       val model = settings.codexModel.trim().ifEmpty { ProviderPolicy.DEFAULT_CODEX_MODEL }
-      val effort = settings.codexReasoningEffort.trim()
-        .takeIf { it in ProviderPolicy.codexReasoningEfforts }
-        ?: ProviderPolicy.DEFAULT_CODEX_EFFORT
+      if (!ProviderPolicy.isValidModelName(model)) {
+        return@runInterruptible BackendResult.Failure(ProviderPolicy.invalidModelMessage("Codex", model))
+      }
+      val effort = settings.codexReasoningEffort.trim().ifEmpty { ProviderPolicy.DEFAULT_CODEX_EFFORT }
+      if (!ProviderPolicy.isValidReasoningEffort(effort)) {
+        return@runInterruptible BackendResult.Failure(
+          "Codex reasoning effort \"${effort.take(40)}\" is not valid. " +
+            "Choose one of ${ProviderPolicy.codexReasoningEfforts.joinToString()} in the plugin settings.",
+        )
+      }
       try {
         appServer.complete(
           executable,
@@ -70,22 +77,7 @@ class CodexBackend : CompletionBackend, AutoCloseable {
     maxOutputTokens: Int,
   ): BackendResult = TemporaryWorkspace.use { workspace ->
     val result = ProcessRunner.run(
-      command = listOf(
-        executable.toString(),
-        "exec",
-        "--ephemeral",
-        "--ignore-user-config",
-        "--ignore-rules",
-        "--sandbox",
-        "read-only",
-        "--skip-git-repo-check",
-        "--model",
-        model,
-        "--config",
-        "model_reasoning_effort=\"$effort\"",
-        "--json",
-        "-",
-      ),
+      command = oneShotCommand(executable, model, effort),
       input = prompt.combined() + "\n\nReturn no more than $maxOutputTokens approximate tokens.",
       workingDirectory = workspace,
       timeoutSeconds = timeoutSeconds,
@@ -103,6 +95,25 @@ class CodexBackend : CompletionBackend, AutoCloseable {
       if (parsed is BackendResult.Success) parsed.copy(transport = "one-shot exec fallback") else parsed
     }
   }
+
+  internal fun oneShotCommand(executable: Path, model: String, effort: String): List<String> = listOf(
+    executable.toString(),
+    "exec",
+    "--ephemeral",
+    "--ignore-user-config",
+    "--ignore-rules",
+    "--sandbox",
+    "read-only",
+    "--skip-git-repo-check",
+    "--model",
+    model,
+    "--config",
+    // Unquoted on purpose: Codex reads a value that is not valid TOML as a literal string, and a
+    // quoted value loses its quotes on Windows. The effort is validated as a plain lowercase word.
+    "model_reasoning_effort=$effort",
+    "--json",
+    "-",
+  )
 
   internal fun parseJsonLines(
     stdout: String,

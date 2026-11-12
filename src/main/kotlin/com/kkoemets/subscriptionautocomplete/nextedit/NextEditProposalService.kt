@@ -151,7 +151,9 @@ class NextEditProposalService(
           notify("No clear related edit was proposed.", NotificationType.INFORMATION)
           return
         }
-        coroutineScope.launch(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+        // Shown only when no modal dialog is open; ModalityState.any() put it on top of unrelated
+        // dialogs such as Settings or Commit, where its Open Target button could not be used.
+        coroutineScope.launch(Dispatchers.EDT + ModalityState.nonModal().asContextElement()) {
           if (project.isDisposed) return@launch
           val finalStaleReason = nextEditDiscardReason(
             project,
@@ -276,9 +278,12 @@ private fun selectedEditorIsCurrent(project: Project, expected: Editor): Boolean
     return !project.isDisposed && FileEditorManager.getInstance(project).selectedTextEditor === expected
   }
   var current = false
-  application.invokeAndWait {
-    current = !project.isDisposed && FileEditorManager.getInstance(project).selectedTextEditor === expected
-  }
+  // Reading the selection is safe in any modality. The default would park this worker, and with it
+  // the whole proposal, for as long as the user keeps any modal dialog open.
+  application.invokeAndWait(
+    { current = !project.isDisposed && FileEditorManager.getInstance(project).selectedTextEditor === expected },
+    ModalityState.any(),
+  )
   return current
 }
 

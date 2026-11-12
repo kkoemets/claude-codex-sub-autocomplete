@@ -60,9 +60,10 @@ class SubscriptionCompletionProvider private constructor(
   }
 
   override suspend fun getSuggestion(request: InlineCompletionRequest): InlineCompletionSuggestion {
-    if (!request.event.isManualCompletion()) {
-      cachedSuggestion(request)?.let { return it }
-    }
+    // The hotkey is an explicit request. The base class forces only DirectCall, so the plugin's
+    // ManualCall used to wait out the typing debounce first. (shouldBeForced is scheduled for removal.)
+    if (request.event.isManualCompletion()) return getSuggestionDebounced(request)
+    cachedSuggestion(request)?.let { return it }
     return super.getSuggestion(request)
   }
 
@@ -108,7 +109,7 @@ class SubscriptionCompletionProvider private constructor(
     val requestId = runtime.nextRequestId()
     val startedAt = System.nanoTime()
     observe(runtime, requestId, CompletionPipelineStage.TRIGGERED, startedAt, provider = provider)
-    val completionIntent = if (mode == CompletionMode.AUTOMATIC && request.typedText().isExactNewline()) {
+    val completionIntent = if (mode == CompletionMode.AUTOMATIC && request.typedText().isNewlineTyping()) {
       readAction {
         val classified = CompletionIntentClassifier.classify(
           request.document.charsSequence,
@@ -461,7 +462,11 @@ private fun InlineCompletionEvent.isManualCompletion(): Boolean =
 private fun InlineCompletionRequest.typedText(): String =
   (event as? InlineCompletionEvent.DocumentChange)?.typing?.typed.orEmpty()
 
-private fun String.isExactNewline(): Boolean = this == "\n" || this == "\r\n"
+/**
+ * The platform reports Enter as the line break plus the indentation the editor inserted after it,
+ * so a comparison with a bare line break only ever matched at column zero.
+ */
+internal fun String.isNewlineTyping(): Boolean = contains('\n') && isBlank()
 
 internal fun isPsiLineCommentIntent(file: PsiFile, text: CharSequence, endOffset: Int): Boolean {
   val prefix = when (file.language.id.lowercase()) {

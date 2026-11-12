@@ -94,6 +94,20 @@ class TerminalTabKeyTest {
   }
 
   @Test
+  fun `pressing a modifier on its own does not invalidate pending completion`() {
+    listOf(
+      KeyEvent.VK_SHIFT to InputEvent.SHIFT_DOWN_MASK,
+      KeyEvent.VK_CONTROL to InputEvent.CTRL_DOWN_MASK,
+      KeyEvent.VK_ALT to InputEvent.ALT_DOWN_MASK,
+      KeyEvent.VK_META to InputEvent.META_DOWN_MASK,
+    ).forEach { (keyCode, modifiers) ->
+      assertFalse(TerminalTabKey.changesInput(key(KeyEvent.KEY_PRESSED, keyCode, KeyEvent.CHAR_UNDEFINED, modifiers)))
+    }
+    // The shortcut the modifier belongs to still counts.
+    assertTrue(TerminalTabKey.changesInput(key(KeyEvent.KEY_PRESSED, KeyEvent.VK_C, 'c', InputEvent.CTRL_DOWN_MASK)))
+  }
+
+  @Test
   fun `real text and editing keys still invalidate pending completion`() {
     assertTrue(TerminalTabKey.changesInput(key(KeyEvent.KEY_TYPED, KeyEvent.VK_UNDEFINED, 'õ', 0)))
     assertTrue(TerminalTabKey.changesInput(key(KeyEvent.KEY_PRESSED, KeyEvent.VK_ENTER, '\n', 0)))

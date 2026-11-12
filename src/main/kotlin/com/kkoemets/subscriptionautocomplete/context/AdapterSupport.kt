@@ -16,7 +16,7 @@ internal object AdapterSupport {
 
   fun currentLine(text: String, offset: Int): String {
     val safe = offset.coerceIn(0, text.length)
-    val start = text.lastIndexOf('\n', (safe - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val start = text.lastIndexOf('\n', safe - 1).let { if (it < 0) 0 else it + 1 }
     val end = text.indexOf('\n', safe).let { if (it < 0) text.length else it }
     return text.substring(start, end)
   }

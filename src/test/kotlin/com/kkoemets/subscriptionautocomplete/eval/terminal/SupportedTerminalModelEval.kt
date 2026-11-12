@@ -24,7 +24,7 @@ object SupportedTerminalModelEval {
       )
       SubscriptionTerminalEval.validateIfOfficial(dataset, report)
     }
-    ProviderPolicy.codexFallbackChoices.forEach { model ->
+    ProviderPolicy.codexModels.forEach { model ->
       ProviderPolicy.codexReasoningEfforts.forEach { effort ->
         val settings = SubscriptionTerminalEval.settings(ProviderKind.CODEX).copy(
           codexModel = model,

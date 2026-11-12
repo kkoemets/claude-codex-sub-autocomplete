@@ -4,6 +4,7 @@ import com.kkoemets.subscriptionautocomplete.completion.CompletionMode
 import com.kkoemets.subscriptionautocomplete.completion.CompletionPrompt
 import com.kkoemets.subscriptionautocomplete.provider.BackendResult
 import com.kkoemets.subscriptionautocomplete.provider.ClaudeBackend
+import com.kkoemets.subscriptionautocomplete.provider.ProviderPolicy
 import com.kkoemets.subscriptionautocomplete.settings.AutocompleteSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -17,7 +18,7 @@ object ClaudeLifecycleSmoke {
   fun main(args: Array<String>) = runBlocking {
     val backend = ClaudeBackend()
     val settings = AutocompleteSettings.SettingsState(
-      claudeModel = "haiku",
+      claudeModel = ProviderPolicy.DEFAULT_CLAUDE_MODEL,
       timeoutSeconds = 20,
       maxOutputTokens = 32,
     )

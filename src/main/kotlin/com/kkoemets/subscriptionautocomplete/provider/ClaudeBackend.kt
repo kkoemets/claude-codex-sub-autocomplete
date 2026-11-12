@@ -10,6 +10,7 @@ import com.kkoemets.subscriptionautocomplete.settings.ProviderKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
 
@@ -32,11 +33,14 @@ class ClaudeBackend : CompletionBackend {
           return@use BackendResult.Failure(it)
         }
         val model = settings.claudeModel.trim().ifEmpty { ProviderPolicy.DEFAULT_CLAUDE_MODEL }
+        if (!ProviderPolicy.isValidModelName(model)) {
+          return@use BackendResult.Failure(ProviderPolicy.invalidModelMessage("Claude", model))
+        }
         val maxCharacters = CompletionOutputEnvelope.maxCharacters(settings.maxOutputTokens)
         val streamLimiter = ClaudeStreamLimiter(maxCharacters)
         val providerStartedAt = System.nanoTime()
         val result = ProcessRunner.runStreamingLines(
-          command = command(executable, prompt, model, settings.maxOutputTokens),
+          command = prepareCommand(executable, workspace, prompt, model, settings.maxOutputTokens),
           input = prompt.userPrompt,
           workingDirectory = workspace,
           timeoutSeconds = settings.timeoutSeconds,
@@ -94,13 +98,34 @@ class ClaudeBackend : CompletionBackend {
     BackendResult.Failure("Claude completion failed: ${error.message ?: error.javaClass.simpleName}")
   }
 
-  internal fun command(executable: Path, prompt: CompletionPrompt, model: String, maxOutputTokens: Int): List<String> {
-    val settingsJson = JsonObject().apply {
+  /**
+   * Builds the CLI invocation and writes the files it refers to into [workspace], which must be the
+   * process working directory.
+   *
+   * The settings JSON and the system prompt travel as files named by fixed relative paths, never as
+   * argument values. Windows drops unescaped double quotes from arguments, which turned the inline
+   * settings JSON into "Invalid JSON provided to --settings", and `cmd.exe` launchers additionally
+   * truncate an argument at its first line break. Every argument below is plain ASCII without
+   * quotes or whitespace, so it reaches the CLI unchanged through any launcher.
+   */
+  internal fun prepareCommand(
+    executable: Path,
+    workspace: Path,
+    prompt: CompletionPrompt,
+    model: String,
+    maxOutputTokens: Int,
+  ): List<String> {
+    val settings = JsonObject().apply {
       addProperty("model", model)
       add("availableModels", JsonArray().apply { add(model) })
       addProperty("enforceAvailableModels", true)
       add("fallbackModel", JsonArray())
-    }.toString()
+    }
+    Files.writeString(workspace.resolve(SETTINGS_FILE), settings.toString())
+    Files.writeString(
+      workspace.resolve(SYSTEM_PROMPT_FILE),
+      prompt.systemPrompt + "\nReturn no more than $maxOutputTokens approximate tokens.",
+    )
     return listOf(
       executable.toString(),
       "-p",
@@ -123,9 +148,9 @@ class ClaudeBackend : CompletionBackend {
       "--permission-mode",
       "dontAsk",
       "--settings",
-      settingsJson,
-      "--system-prompt",
-      prompt.systemPrompt + "\nReturn no more than $maxOutputTokens approximate tokens.",
+      SETTINGS_FILE,
+      "--system-prompt-file",
+      SYSTEM_PROMPT_FILE,
     )
   }
 
@@ -186,9 +211,16 @@ class ClaudeBackend : CompletionBackend {
     return cleanSubscriptionError(result ?: errors ?: "Claude completion failed.")
   }
 
-  private fun cleanError(stderr: String, stdout: String): String =
-    (stderr.ifBlank { stdout }).lineSequence().lastOrNull { it.isNotBlank() }?.take(500)
-      ?: "Claude completion failed."
+  private fun cleanError(stderr: String, stdout: String): String {
+    val detail = (stderr.ifBlank { stdout }).lineSequence().lastOrNull { it.isNotBlank() }?.trim()?.take(500)
+      ?: return "Claude completion failed."
+    // An older CLI rejects options it does not know; the raw message alone does not say what to do.
+    return if (UNSUPPORTED_OPTION.containsMatchIn(detail)) {
+      "$detail. This plugin needs a newer Claude Code: run `claude update`."
+    } else {
+      detail
+    }
+  }
 
   private fun cleanSubscriptionError(message: String): String =
     if (message.contains("disabled Claude subscription access", ignoreCase = true)) {
@@ -197,11 +229,14 @@ class ClaudeBackend : CompletionBackend {
       message
     }
 
-  private companion object {
-    const val UNREADABLE_RESPONSE = "Claude returned an unreadable response."
-    const val ORGANIZATION_DISABLED_MESSAGE =
+  internal companion object {
+    const val SETTINGS_FILE = "settings.json"
+    const val SYSTEM_PROMPT_FILE = "system-prompt.txt"
+    private val UNSUPPORTED_OPTION = Regex("unknown option|unrecognized option|invalid option", RegexOption.IGNORE_CASE)
+    private const val UNREADABLE_RESPONSE = "Claude returned an unreadable response."
+    private const val ORGANIZATION_DISABLED_MESSAGE =
       "Claude subscription access is disabled for this organization. Ask its administrator to enable Claude Code subscription access."
-    const val ORGANIZATION_DISABLED_COOLDOWN_NANOS = 60_000_000_000L
+    private const val ORGANIZATION_DISABLED_COOLDOWN_NANOS = 60_000_000_000L
   }
 }
 

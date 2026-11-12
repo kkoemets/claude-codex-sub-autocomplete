@@ -47,7 +47,7 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
     var manualOnly: Boolean = true,
     var automaticEngine: String = AutomaticCompletionEngine.OFF.name,
     var provider: String = ProviderKind.CODEX.name,
-    var claudeModel: String = "haiku",
+    var claudeModel: String = ProviderPolicy.DEFAULT_CLAUDE_MODEL,
     var codexModel: String = ProviderPolicy.DEFAULT_CODEX_MODEL,
     var codexReasoningEffort: String = ProviderPolicy.DEFAULT_CODEX_EFFORT,
     var claudeExecutable: String = "",
@@ -104,25 +104,39 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
     if (
       state.settingsVersion < NO_REASONING_DEFAULT_SETTINGS_VERSION &&
       state.codexReasoningEffort == LEGACY_DEFAULT_CODEX_EFFORT &&
-      state.codexModel in ProviderPolicy.codexNoReasoningModels
+      state.codexModel in LEGACY_NO_REASONING_CODEX_MODELS
     ) {
       state.codexReasoningEffort = LEGACY_NO_REASONING_CODEX_EFFORT
     }
     if (
       state.settingsVersion < SPARK_DEFAULT_SETTINGS_VERSION &&
-      state.codexModel == ProviderPolicy.LEGACY_CODEX_MODEL &&
+      state.codexModel == ProviderPolicy.DEFAULT_CODEX_MODEL &&
       state.codexReasoningEffort == LEGACY_NO_REASONING_CODEX_EFFORT
     ) {
-      state.codexModel = ProviderPolicy.DEFAULT_CODEX_MODEL
       state.codexReasoningEffort = ProviderPolicy.DEFAULT_CODEX_EFFORT
     }
     if (state.settingsVersion < TERMINAL_COMPLETION_SETTINGS_VERSION) {
       state.terminalCompletionsEnabled = true
     }
+    replaceRetiredModels(state)
     state.manualOnly = state.selectedAutomaticEngine() == AutomaticCompletionEngine.OFF
     state.settingsVersion = CURRENT_SETTINGS_VERSION
     state.settingsRevision = maxOf(currentState.settingsRevision, state.settingsRevision) + 1
     currentState = state
+  }
+
+  /**
+   * A stored model the subscription no longer serves fails every request, so it is replaced with
+   * the current default pair. This runs on every load, not once per settings version, because
+   * settings can also arrive later from Settings Sync or an older plugin installation.
+   */
+  private fun replaceRetiredModels(state: SettingsState) {
+    if (state.claudeModel.isBlank()) state.claudeModel = ProviderPolicy.DEFAULT_CLAUDE_MODEL
+    if (state.codexModel.isBlank() || state.codexModel.trim() in ProviderPolicy.retiredCodexModels) {
+      state.codexModel = ProviderPolicy.DEFAULT_CODEX_MODEL
+      state.codexReasoningEffort = ProviderPolicy.DEFAULT_CODEX_EFFORT
+    }
+    if (state.codexReasoningEffort.isBlank()) state.codexReasoningEffort = ProviderPolicy.DEFAULT_CODEX_EFFORT
   }
 
   fun selectedProvider(): ProviderKind = currentState.selectedProvider()
@@ -156,10 +170,12 @@ class AutocompleteSettings : PersistentStateComponent<AutocompleteSettings.Setti
     private const val NO_REASONING_DEFAULT_SETTINGS_VERSION = 4
     private const val SPARK_DEFAULT_SETTINGS_VERSION = 5
     private const val TERMINAL_COMPLETION_SETTINGS_VERSION = 6
-    private const val CURRENT_SETTINGS_VERSION = TERMINAL_COMPLETION_SETTINGS_VERSION
+    private const val CURRENT_MODELS_SETTINGS_VERSION = 7
+    private const val CURRENT_SETTINGS_VERSION = CURRENT_MODELS_SETTINGS_VERSION
     private const val LEGACY_DEFAULT_OUTPUT_TOKENS = 192
     private const val LEGACY_DEFAULT_CODEX_EFFORT = "low"
     private const val LEGACY_NO_REASONING_CODEX_EFFORT = "none"
+    private val LEGACY_NO_REASONING_CODEX_MODELS = setOf("gpt-5.6-luna", "gpt-5.6-terra")
     private const val DEFAULT_OUTPUT_TOKENS = 512
 
     @JvmField

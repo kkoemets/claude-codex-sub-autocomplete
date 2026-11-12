@@ -3,7 +3,10 @@ package com.kkoemets.subscriptionautocomplete.settings
 import com.kkoemets.subscriptionautocomplete.provider.ProviderPolicy
 import com.kkoemets.subscriptionautocomplete.diagnostics.DiagnosticsDialog
 import com.kkoemets.subscriptionautocomplete.status.ProviderStatusWidget
+import com.intellij.ide.DataManager
+import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.wm.WindowManager
@@ -29,11 +32,12 @@ class AutocompleteConfigurable : Configurable {
   )
   private val provider = ComboBox<ProviderKind>(CollectionComboBoxModel(ProviderKind.entries.toList()))
   private val claudeModel = editableCombo(ProviderPolicy.claudeModels).apply {
-    toolTipText = "<html>Default: Haiku. It produced the best measured subscription-autocomplete latency<br>" +
-      "in the live multi-language evaluation. Choose a larger Claude model only when quality matters more than speed.</html>"
+    toolTipText = "<html>Default: Claude Haiku 5.5 (${ProviderPolicy.DEFAULT_CLAUDE_MODEL}), the fastest Claude model<br>" +
+      "for autocomplete. Choose a larger Claude model only when quality matters more than speed.<br>" +
+      "Aliases such as haiku, sonnet or opus follow whatever your installed Claude Code maps them to.</html>"
   }
-  private val codexModel = editableCombo(ProviderPolicy.codexFallbackChoices).apply {
-    toolTipText = "<html>Default: GPT-5.6 Luna with low reasoning.<br>" +
+  private val codexModel = editableCombo(ProviderPolicy.codexModels).apply {
+    toolTipText = "<html>Default: GPT-5.6 Luna (${ProviderPolicy.DEFAULT_CODEX_MODEL}) with low reasoning.<br>" +
       "Choose a model available through your ChatGPT subscription.</html>"
   }
   private val codexEffort = editableCombo(ProviderPolicy.codexReasoningEfforts).apply {
@@ -89,8 +93,12 @@ class AutocompleteConfigurable : Configurable {
 
   init {
     diagnostics.addActionListener {
-      apply()
-      DiagnosticsDialog.open(ProjectManager.getInstance().openProjects.firstOrNull(), modal = true)
+      // Test what the form shows without saving it: Cancel must still discard the changes.
+      val project = CommonDataKeys.PROJECT.getData(DataManager.getInstance().getDataContext(diagnostics))
+        ?: ProjectManager.getInstance().openProjects.firstOrNull()
+      DiagnosticsDialog.open(project, modal = true) {
+        AutocompleteSettings.getInstance().snapshot().also(::writeForm)
+      }
     }
   }
 
@@ -170,29 +178,44 @@ class AutocompleteConfigurable : Configurable {
   }
 
   override fun apply() {
-    AutocompleteSettings.getInstance().update { state ->
-      state.enabled = enabled.isSelected
-      state.automaticEngine = (
-        automaticEngine.selectedItem as? AutomaticCompletionEngine ?: AutomaticCompletionEngine.OFF
-      ).name
-      state.provider = (provider.selectedItem as? ProviderKind ?: ProviderKind.CODEX).name
-      state.claudeModel = editorText(claudeModel).ifBlank { ProviderPolicy.DEFAULT_CLAUDE_MODEL }
-      state.codexModel = editorText(codexModel).ifBlank { ProviderPolicy.DEFAULT_CODEX_MODEL }
-      state.codexReasoningEffort = editorText(codexEffort).ifBlank { ProviderPolicy.DEFAULT_CODEX_EFFORT }
-      state.claudeExecutable = claudeExecutable.text.trim()
-      state.codexExecutable = codexExecutable.text.trim()
-      state.debounceMs = debounceMs.text.toIntOrNull()?.coerceIn(100, 3000) ?: 750
-      state.timeoutSeconds = timeoutSeconds.text.toIntOrNull()?.coerceIn(2, 120) ?: 15
-      state.contextTokenBudget = contextTokenBudget.text.toIntOrNull()?.coerceIn(600, 4000) ?: 1400
-      state.maxOutputTokens = maxOutputTokens.text.toIntOrNull()?.coerceIn(16, 512) ?: 512
-      state.recentEditContextEnabled = recentEditContext.isSelected
-      state.openTabContextEnabled = openTabContext.isSelected
-      state.allowCrossFileForSubscription = subscriptionCrossFile.isSelected
-      state.terminalCompletionsEnabled = terminalCompletions.isSelected
-    }
+    validateNumbers()
+    AutocompleteSettings.getInstance().update(::writeForm)
     ProjectManager.getInstance().openProjects.forEach { project ->
       WindowManager.getInstance().getStatusBar(project)?.updateWidget(ProviderStatusWidget.ID)
     }
+    // Show the stored values, so Apply is disabled again once they are saved.
+    reset()
+  }
+
+  /** Rejects instead of silently replacing a value the user typed. */
+  private fun validateNumbers() {
+    NUMERIC_FIELDS.forEach { (field, range, label) ->
+      val value = field(this).text.trim().toIntOrNull()
+      if (value == null || value !in range) {
+        throw ConfigurationException("$label must be a whole number from ${range.first} to ${range.last}.")
+      }
+    }
+  }
+
+  private fun writeForm(state: AutocompleteSettings.SettingsState) {
+    state.enabled = enabled.isSelected
+    state.automaticEngine = (
+      automaticEngine.selectedItem as? AutomaticCompletionEngine ?: AutomaticCompletionEngine.OFF
+    ).name
+    state.provider = (provider.selectedItem as? ProviderKind ?: ProviderKind.CODEX).name
+    state.claudeModel = editorText(claudeModel).ifBlank { ProviderPolicy.DEFAULT_CLAUDE_MODEL }
+    state.codexModel = editorText(codexModel).ifBlank { ProviderPolicy.DEFAULT_CODEX_MODEL }
+    state.codexReasoningEffort = editorText(codexEffort).ifBlank { ProviderPolicy.DEFAULT_CODEX_EFFORT }
+    state.claudeExecutable = claudeExecutable.text.trim()
+    state.codexExecutable = codexExecutable.text.trim()
+    state.debounceMs = debounceMs.text.trim().toIntOrNull()?.coerceIn(DEBOUNCE_RANGE) ?: 750
+    state.timeoutSeconds = timeoutSeconds.text.trim().toIntOrNull()?.coerceIn(TIMEOUT_RANGE) ?: 15
+    state.contextTokenBudget = contextTokenBudget.text.trim().toIntOrNull()?.coerceIn(CONTEXT_RANGE) ?: 1400
+    state.maxOutputTokens = maxOutputTokens.text.trim().toIntOrNull()?.coerceIn(OUTPUT_RANGE) ?: 512
+    state.recentEditContextEnabled = recentEditContext.isSelected
+    state.openTabContextEnabled = openTabContext.isSelected
+    state.allowCrossFileForSubscription = subscriptionCrossFile.isSelected
+    state.terminalCompletionsEnabled = terminalCompletions.isSelected
   }
 
   override fun reset() {
@@ -220,6 +243,19 @@ class AutocompleteConfigurable : Configurable {
 
   override fun disposeUIResources() {
     panel = null
+  }
+
+  private companion object {
+    val DEBOUNCE_RANGE = 100..3000
+    val TIMEOUT_RANGE = 2..120
+    val CONTEXT_RANGE = 600..4000
+    val OUTPUT_RANGE = 16..512
+    val NUMERIC_FIELDS: List<Triple<(AutocompleteConfigurable) -> JBTextField, IntRange, String>> = listOf(
+      Triple({ it.debounceMs }, DEBOUNCE_RANGE, "Typing debounce"),
+      Triple({ it.timeoutSeconds }, TIMEOUT_RANGE, "Request timeout"),
+      Triple({ it.contextTokenBudget }, CONTEXT_RANGE, "Input context budget"),
+      Triple({ it.maxOutputTokens }, OUTPUT_RANGE, "Approximate completion size"),
+    )
   }
 
   private fun editableCombo(values: List<String>): ComboBox<String> =

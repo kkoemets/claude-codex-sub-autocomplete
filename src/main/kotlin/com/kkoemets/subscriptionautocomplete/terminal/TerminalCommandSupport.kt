@@ -38,6 +38,34 @@ internal data class TerminalPromptContext(
   val platform: String = "",
 )
 
+/**
+ * The keystrokes that replace the typed `# request` with the generated command.
+ *
+ * There is no universal "clear the line" key. Ctrl+U is a readline/zle binding: Windows PowerShell
+ * (PSReadLine in its default Windows mode) and `cmd.exe` have no such binding and print it as `^U`
+ * in front of the command. Those shells clear the line with End followed by Ctrl+Home, sent here as
+ * the terminal key sequences the Windows console translates back into those keys.
+ *
+ * Ctrl+U only deletes to the left of the cursor in bash and fish, so readline shells first move to
+ * the end of the line with Ctrl+E.
+ */
+internal object TerminalLineEditing {
+  private const val END_OF_LINE = "\u0005"
+  private const val DELETE_TO_LINE_START = "\u0015"
+  private const val END_KEY = "\u001b[F"
+  private const val CONTROL_HOME_KEY = "\u001b[1;5H"
+  private val WINDOWS_CONSOLE_SHELLS = setOf("powershell", "pwsh", "cmd")
+
+  fun clearLine(shell: String, platform: String): String =
+    if (platform == "windows" && shell.lowercase() in WINDOWS_CONSOLE_SHELLS) {
+      END_KEY + CONTROL_HOME_KEY
+    } else {
+      END_OF_LINE + DELETE_TO_LINE_START
+    }
+
+  fun replaceLine(shell: String, platform: String, command: String): String = clearLine(shell, platform) + command
+}
+
 internal object TerminalCommandTrigger {
   fun extract(command: String, prefix: String = TERMINAL_TRIGGER_PREFIX): String? {
     if (prefix.isBlank() || command.length > MAX_COMMAND_CHARACTERS) return null

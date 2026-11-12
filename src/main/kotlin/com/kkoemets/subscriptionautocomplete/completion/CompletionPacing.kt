@@ -65,7 +65,7 @@ internal object CompletionTriggerPolicy {
     if (typed.contains('\n')) return true
     val suffix = text.getOrNull(safeOffset)
     if (suffix != null && (suffix.isLetterOrDigit() || suffix == '_')) return false
-    val lineStart = text.lastIndexOf('\n', (safeOffset - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val lineStart = text.lastIndexOf('\n', safeOffset - 1).let { if (it < 0) 0 else it + 1 }
     val linePrefix = text.substring(lineStart, safeOffset)
     val trimmed = linePrefix.trimStart()
     if (trimmed.isBlank()) return false

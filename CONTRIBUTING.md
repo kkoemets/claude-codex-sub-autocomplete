@@ -185,6 +185,52 @@ CLI errors, cancellation, timeouts, and output limits. The installed fixture tes
 checks ghost text and acceptance. These checks validate integration; they do not
 measure authenticated Claude model quality.
 
+### Windows Claude launch check
+
+Issue #3 ("Invalid JSON provided to --settings") was caused by Windows, where a
+child process receives one command-line string instead of an argument list and
+loses every unescaped double quote. Three layers now guard that path:
+
+- `ProviderCommandLineTest` models the JDK's Windows command-line construction and
+  the C runtime's parsing on every OS. It shows that the old inline JSON arrived as
+  `{model:haiku,...}`, and that every production argument for Claude, Codex `exec`
+  and the Codex app-server reaches `.exe`, `.cmd` and `.bat` launchers unchanged.
+- `ClaudeBackendIntegrationTest` runs the production backend against a JVM-based
+  fake CLI. On Windows it starts that fake through a real `claude.cmd` shim in a
+  directory whose name contains a space. Run `.\gradlew.bat test` on Windows to
+  exercise `cmd.exe` and the C runtime themselves.
+- `claudeCliCompatibilitySmoke` checks the installed CLI against the production
+  invocation.
+
+Run the smoke from PowerShell on a real Windows machine or VM with JDK 21 and
+Claude Code installed:
+
+```powershell
+.\gradlew.bat claudeCliCompatibilitySmoke -PclaudeArgumentsOnly=true -PclaudeLiveRequest=true --no-daemon
+```
+
+It prints the OS, architecture, Java and Claude versions and the launcher file name.
+It then passes the production arguments with `--help` for every supported Claude
+model; that resolves `--settings` without a model request. A negative control checks
+that the CLI rejects a missing settings file. With `-PclaudeLiveRequest=true` it also
+sends one real request through the production backend, which proves that the
+settings and the system-prompt file arrive intact.
+
+Repeat with each installed launcher, especially native `claude.exe` and npm's
+`claude.cmd`, by supplying an existing absolute path:
+
+```powershell
+.\gradlew.bat claudeCliCompatibilitySmoke -PclaudeArgumentsOnly=true -PclaudeLiveRequest=true "-PclaudeExecutable=C:\path\to\claude.exe" --no-daemon
+.\gradlew.bat claudeCliCompatibilitySmoke -PclaudeArgumentsOnly=true -PclaudeLiveRequest=true "-PclaudeExecutable=C:\path\to\claude.cmd" --no-daemon
+```
+
+Passing these checks does not establish that the installed plugin works on Windows.
+Install the candidate ZIP in IntelliJ IDEA and verify editor suggestion and
+acceptance, and terminal suggestion and acceptance without execution, in both
+PowerShell and cmd. Restart the IDE and inspect its logs. Record the exact IDE build,
+plugin version, OS architecture and CLI launcher. macOS, Linux and Windows ARM
+results do not establish native Windows x64 coverage.
+
 ## Pull requests
 
 - Keep each pull request focused on one coherent change.

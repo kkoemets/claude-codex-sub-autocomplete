@@ -57,7 +57,7 @@ class TerminalCompletionThreadingTest : BasePlatformTestCase() {
     assertEquals(2, terminal.probes.get())
     assertEquals(1, terminal.contexts.get())
     assertEquals(1, backend.calls.get())
-    assertEquals(listOf("\u0015pwd"), terminal.sent)
+    assertEquals(listOf(REPLACED_WITH_PWD), terminal.sent)
     assertEquals(0, terminal.listeners.get())
   }
 
@@ -141,7 +141,7 @@ class TerminalCompletionThreadingTest : BasePlatformTestCase() {
     backend.release.complete(Unit)
     awaitFinished()
     assertEquals(1, backend.calls.get())
-    assertEquals(listOf("\u0015pwd"), terminal.sent)
+    assertEquals(listOf(REPLACED_WITH_PWD), terminal.sent)
   }
 
   fun testChangedThenRestoredInputStillRejectsLateProviderResponse() = runBlocking {
@@ -153,6 +153,23 @@ class TerminalCompletionThreadingTest : BasePlatformTestCase() {
     backend.release.complete(Unit)
     awaitFinished()
     assertEmpty(terminal.sent)
+  }
+
+  fun testNewRequestAfterInputChangedSupersedesTheStaleOne() = runBlocking {
+    val terminal = StrictTerminal()
+    val stale = FixedBackend(hold = true)
+    val fresh = FixedBackend()
+    withContext(Dispatchers.EDT) { assertTrue(service.request(terminal, backend = { stale })) }
+    withTimeout(5_000) { stale.entered.await() }
+    withContext(Dispatchers.EDT) {
+      // The user rewrote the request while the first answer was still pending.
+      terminal.revision++
+      assertTrue("A request for the new input must not be ignored", service.request(terminal, backend = { fresh }))
+    }
+    awaitFinished()
+    assertEquals(1, fresh.calls.get())
+    assertEquals(listOf(REPLACED_WITH_PWD), terminal.sent)
+    assertEquals(0, terminal.listeners.get())
   }
 
   fun testRepeatedTabUsesOriginalListenerRevisionAcrossTargetInstances() = runBlocking {
@@ -167,7 +184,7 @@ class TerminalCompletionThreadingTest : BasePlatformTestCase() {
     withContext(Dispatchers.EDT) { assertTrue(service.request(nextTarget, true) { backend }) }
     backend.release.complete(Unit)
     awaitFinished()
-    assertEquals(listOf("\u0015pwd"), terminal.sent)
+    assertEquals(listOf(REPLACED_WITH_PWD), terminal.sent)
     assertEquals(1, backend.calls.get())
   }
 
@@ -272,6 +289,9 @@ class TerminalCompletionThreadingTest : BasePlatformTestCase() {
   }
 
   companion object {
+    /** Ctrl+E, Ctrl+U, then the command: the readline line replacement for the fake bash terminal. */
+    private const val REPLACED_WITH_PWD = "\u0005\u0015pwd"
+
     private fun assertBackgroundAccess() {
       val app = ApplicationManager.getApplication()
       check(!app.isDispatchThread) { "Process/filesystem probe ran on EDT" }

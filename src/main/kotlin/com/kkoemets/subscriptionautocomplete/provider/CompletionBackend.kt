@@ -52,29 +52,3 @@ interface CompletionBackend {
     settings: AutocompleteSettings.SettingsState,
   ): BackendResult = complete(request.prompt, settings)
 }
-
-object ProviderPolicy {
-  const val DEFAULT_CLAUDE_MODEL = "haiku"
-  const val CODEX_SPARK_MODEL = "gpt-5.3-codex-spark"
-  const val DEFAULT_CODEX_MODEL = "gpt-5.6-luna"
-  const val DEFAULT_CODEX_EFFORT = "low"
-  const val LEGACY_CODEX_MODEL = "gpt-5.6-luna"
-
-  val claudeModels = listOf("haiku", "sonnet", "opus")
-  val codexFallbackChoices = listOf(
-    DEFAULT_CODEX_MODEL,
-    CODEX_SPARK_MODEL,
-    "gpt-5.6-sol",
-    "gpt-5.6-terra",
-    "gpt-5.5",
-    "gpt-5.4",
-  )
-  val codexReasoningEfforts = listOf("none", "low", "medium", "high", "xhigh", "max")
-  val codexNoReasoningModels = setOf(
-    LEGACY_CODEX_MODEL,
-    "gpt-5.6-sol",
-    "gpt-5.6-terra",
-    "gpt-5.5",
-    "gpt-5.4",
-  )
-}

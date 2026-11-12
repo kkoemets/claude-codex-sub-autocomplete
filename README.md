@@ -93,7 +93,11 @@ build 253 or newer, but older Android Studio releases are not part of the mainta
 test matrix. Language context uses the parsers available in your IDE.
 See [IDE compatibility](docs/compatibility.md) for supported versions and update requirements.
 
-Codex defaults to `gpt-5.6-luna` with `low` reasoning. Explicitly stored model and reasoning selections are retained. Configurations that omitted the previous default model use the new default.
+Claude defaults to Claude Haiku 5.5 (`claude-haiku-5-5`). Codex defaults to `gpt-5.6-luna` with `low` reasoning.
+The model lists offer only models the subscriptions currently serve: Claude Haiku 5.5, Sonnet 5.5 and Opus 5.5,
+and Codex `gpt-5.6-luna` and `gpt-5.6-terra`. Explicitly stored models are kept; a stored Codex model that ChatGPT
+subscriptions have retired (`gpt-5.3-codex-spark`, `gpt-5.6-sol`, `gpt-5.5`, `gpt-5.4`) is replaced with the default.
+Claude aliases such as `haiku` still work and follow whatever your installed Claude Code maps them to.
 
 Automatic completion from the selected subscription is enabled on first installation.
 Existing automatic, hotkey-only, and disabled preferences are preserved. To use only the hotkey, set **Automatic typing completions**
@@ -172,6 +176,7 @@ For additional help, read [Support](SUPPORT.md) or open a bug report with diagno
 ```bash
 ./gradlew test
 ./gradlew autocompleteDeterministicEval
+./gradlew autocompleteExpectationsEval
 ./gradlew terminalDeterministicEval
 ./gradlew terminalLiveEval
 ./gradlew buildPlugin
@@ -179,7 +184,7 @@ For additional help, read [Support](SUPPORT.md) or open a bug report with diagno
 ```
 
 `terminalLiveEval` is the explicit network-backed quality gate: it runs one shared
-50-case suite against Claude Haiku and Codex `gpt-5.6-luna`, with Codex reasoning set to `low`.
+50-case suite against Claude Haiku 5.5 and Codex `gpt-5.6-luna`, with Codex reasoning set to `low`.
 It requires at least 90% from each provider and targets 92% or better. It does not
 open or control an IDE.
 

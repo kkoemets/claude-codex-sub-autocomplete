@@ -136,7 +136,7 @@ class EditorContextTracker(
 
   private fun eligibleForProject(file: VirtualFile): Boolean {
     if (!ApplicationManager.getApplication().isReadAccessAllowed) return false
-    return runCatching { filePolicy.isEligible(file) }.getOrDefault(false)
+    return nullOnFailure { filePolicy.isEligible(file) } ?: false
   }
 
   private fun expire(now: Long) = synchronized(lock) {

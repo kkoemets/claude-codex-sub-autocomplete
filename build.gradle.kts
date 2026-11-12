@@ -22,6 +22,14 @@ val ideTestImplementationConfiguration = configurations.getByName("ideTestImplem
 
 val evalRuntimeConfiguration = configurations.create("evalRuntime")
 
+// Standalone eval and smoke tasks run the production provider code outside an IDE. That code
+// launches CLIs through the platform's CommandLineUtil, which lives in these utility jars.
+val evalPlatformUtilities = files(provider {
+  listOf("util-8.jar", "util.jar", "util_rt.jar", "annotations.jar").map { jar ->
+    intellijPlatform.platformPath.resolve("lib").resolve(jar).toFile()
+  }
+})
+
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
@@ -169,7 +177,7 @@ tasks.register<JavaExec>("subscriptionEvals") {
   group = "verification"
   description = "Runs live autocomplete quality and latency evals using the configured subscriptions"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.SubscriptionCompletionEval")
   args(providers.gradleProperty("evalProviders").orElse("codex,claude").get())
   systemProperty(
@@ -180,9 +188,10 @@ tasks.register<JavaExec>("subscriptionEvals") {
   systemProperty("eval.profile", providers.gradleProperty("evalProfile").orElse("smoke").get())
   systemProperty("eval.seed", providers.gradleProperty("evalSeed").orElse("20260718").get())
   systemProperty("eval.cases", providers.gradleProperty("evalCases").orElse("").get())
+  systemProperty("eval.printCandidates", providers.gradleProperty("evalPrintCandidates").orElse("false").get())
   systemProperty(
     "eval.claudeModel",
-    providers.gradleProperty("evalClaudeModel").orElse("haiku").get(),
+    providers.gradleProperty("evalClaudeModel").orElse("claude-haiku-5-5").get(),
   )
   systemProperty(
     "eval.codexModel",
@@ -234,7 +243,7 @@ tasks.register<JavaExec>("subscriptionTerminalEvals") {
   group = "verification"
   description = "Runs live terminal command quality and latency evals using configured subscriptions"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
   args(providers.gradleProperty("terminalEvalProviders").orElse("codex,claude").get())
   systemProperty(
@@ -250,7 +259,7 @@ tasks.register<JavaExec>("subscriptionTerminalEvals") {
   systemProperty("terminal.eval.seed", providers.gradleProperty("terminalEvalSeed").orElse("20260722").get())
   systemProperty(
     "terminal.eval.claudeModel",
-    providers.gradleProperty("terminalEvalClaudeModel").orElse("haiku").get(),
+    providers.gradleProperty("terminalEvalClaudeModel").orElse("claude-haiku-5-5").get(),
   )
   systemProperty(
     "terminal.eval.codexModel",
@@ -274,7 +283,7 @@ tasks.register<JavaExec>("terminalLiveEval") {
   group = "verification"
   description = "Runs the canonical provider-neutral 50-case terminal suite on the plugin's provider defaults"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
   args(providers.gradleProperty("terminalLiveEvalProviders").orElse("claude,codex").get())
   systemProperty(
@@ -299,7 +308,7 @@ tasks.register<JavaExec>("terminalSampleEval") {
   group = "verification"
   description = "Runs one advisory terminal case per category on the selected Claude and Codex defaults"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SubscriptionTerminalEval")
   args(providers.gradleProperty("terminalEvalProviders").orElse("codex,claude").get())
   systemProperty(
@@ -311,7 +320,7 @@ tasks.register<JavaExec>("terminalSampleEval") {
   systemProperty("terminal.eval.seed", providers.gradleProperty("terminalEvalSeed").orElse("20260722").get())
   systemProperty(
     "terminal.eval.claudeModel",
-    providers.gradleProperty("terminalEvalClaudeModel").orElse("haiku").get(),
+    providers.gradleProperty("terminalEvalClaudeModel").orElse("claude-haiku-5-5").get(),
   )
   systemProperty(
     "terminal.eval.codexModel",
@@ -331,7 +340,7 @@ tasks.register<JavaExec>("terminalSupportedModelEvals") {
   group = "verification"
   description = "Runs the credentialed critical terminal suite across all exposed Claude and Codex profiles"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.terminal.SupportedTerminalModelEval")
   systemProperty(
     "terminal.eval.outputDir",
@@ -368,7 +377,7 @@ tasks.register<JavaExec>("subscriptionSampleEval") {
   group = "verification"
   description = "Runs an advisory one-request-per-surface Claude/Codex sample"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.SubscriptionCompletionEval")
   args(providers.gradleProperty("evalProviders").orElse("codex,claude").get())
   systemProperty(
@@ -380,7 +389,7 @@ tasks.register<JavaExec>("subscriptionSampleEval") {
   systemProperty("eval.seed", providers.gradleProperty("evalSeed").orElse("20260718").get())
   systemProperty(
     "eval.claudeModel",
-    providers.gradleProperty("evalClaudeModel").orElse("haiku").get(),
+    providers.gradleProperty("evalClaudeModel").orElse("claude-haiku-5-5").get(),
   )
   systemProperty(
     "eval.codexModel",
@@ -418,7 +427,7 @@ tasks.register<JavaExec>("codexLifecycleSmoke") {
   group = "verification"
   description = "Runs live Codex completions and verifies child-process and cancellation cleanup"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.CodexLifecycleSmoke")
   systemProperty(
     "eval.codexModel",
@@ -434,17 +443,19 @@ tasks.register<JavaExec>("claudeLifecycleSmoke") {
   group = "verification"
   description = "Runs a live Claude completion and verifies subprocess cancellation cleanup"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.ClaudeLifecycleSmoke")
 }
 
 tasks.register<JavaExec>("claudeCliCompatibilitySmoke") {
   group = "verification"
-  description = "Checks installed Claude CLI flags and signed-out failures without an authenticated model request"
+  description = "Checks the installed Claude CLI against the production invocation; -PclaudeLiveRequest=true adds one real request"
   dependsOn(tasks.testClasses)
-  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration
+  classpath = sourceSets.test.get().runtimeClasspath + evalRuntimeConfiguration + evalPlatformUtilities
   mainClass.set("com.kkoemets.subscriptionautocomplete.eval.ClaudeCliCompatibilitySmoke")
   providers.gradleProperty("claudeExecutable").orNull?.let { systemProperty("claude.executable", it) }
+  providers.gradleProperty("claudeArgumentsOnly").orNull?.let { systemProperty("claude.argumentsOnly", it) }
+  providers.gradleProperty("claudeLiveRequest").orNull?.let { systemProperty("claude.liveRequest", it) }
 }
 
 tasks.register<JavaExec>("autocompleteExpectationsEval") {
@@ -582,6 +593,7 @@ tasks.register("autocompleteReleaseGate") {
   dependsOn(
     tasks.test,
     tasks.named("autocompleteDeterministicEval"),
+    tasks.named("autocompleteExpectationsEval"),
     tasks.named("terminalDeterministicEval"),
     tasks.named("autocompleteProviderModelSafetyGate"),
     tasks.named("buildPlugin"),
