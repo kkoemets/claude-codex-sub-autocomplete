@@ -132,7 +132,7 @@ class ContextEngine(private val project: Project) {
     val adapterFragments = LanguageAdapterRegistry.collect(input)
     currentCoroutineContext().ensureActive()
     val now = System.nanoTime()
-    val lineStart = input.text.lastIndexOf('\n', (snapshot.offset - 1).coerceAtLeast(0))
+    val lineStart = input.text.lastIndexOf('\n', snapshot.offset - 1)
       .let { if (it < 0) 0 else it + 1 }
     val key = SemanticCacheKey(
       path = snapshot.path,

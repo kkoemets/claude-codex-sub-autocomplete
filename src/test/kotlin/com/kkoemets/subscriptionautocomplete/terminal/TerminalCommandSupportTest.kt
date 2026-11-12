@@ -219,6 +219,35 @@ class TerminalCommandSupportTest {
   }
 
   @Test
+  fun `readline shells clear the whole line before the command on every platform`() {
+    for (platform in listOf("macos", "linux", "windows", "other", "")) {
+      for (shell in listOf("bash", "zsh", "fish", "sh", "wsl", "git-bash", "shell")) {
+        assertEquals("\u0005\u0015ls -la", TerminalLineEditing.replaceLine(shell, platform, "ls -la"), "$shell on $platform")
+      }
+    }
+    // PowerShell on macOS and Linux defaults to PSReadLine's Emacs mode, which binds Ctrl+U.
+    assertEquals("\u0005\u0015Get-ChildItem", TerminalLineEditing.replaceLine("pwsh", "linux", "Get-ChildItem"))
+  }
+
+  @Test
+  fun `Windows console shells are cleared with End and Ctrl+Home because they do not bind Ctrl+U`() {
+    for (shell in listOf("powershell", "pwsh", "cmd", "PowerShell", "CMD")) {
+      val sent = TerminalLineEditing.replaceLine(shell, "windows", "dir")
+      assertEquals("\u001b[F\u001b[1;5Hdir", sent, shell)
+      assertFalse(sent.contains('\u0015'), "Ctrl+U prints ^U in front of the command in $shell")
+    }
+  }
+
+  @Test
+  fun `line replacement never appends a line break that would run the command`() {
+    for ((shell, platform) in listOf("bash" to "linux", "powershell" to "windows", "cmd" to "windows")) {
+      val clear = TerminalLineEditing.clearLine(shell, platform)
+      assertFalse(clear.any { it == '\n' || it == '\r' }, "$shell clear sequence submits the line")
+      assertTrue(TerminalLineEditing.replaceLine(shell, platform, "echo ok").endsWith("echo ok"))
+    }
+  }
+
+  @Test
   fun `sanitizer enforces the shared output envelope`() {
     val oversized = "x".repeat(CompletionOutputEnvelope.maxCharacters(16) + 1)
 

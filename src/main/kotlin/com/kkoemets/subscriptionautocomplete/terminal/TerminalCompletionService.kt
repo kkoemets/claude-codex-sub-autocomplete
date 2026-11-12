@@ -26,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Suppress("UnstableApiUsage")
@@ -80,26 +81,36 @@ class TerminalCompletionService(
     if (captured == null) { changes.close(); return false }
     val request = PendingTerminalRequest(target, captured, if (forwardTabIfBusy) 1 else 0)
     if (!pending.compareAndSet(null, request)) {
-      changes.close()
       val existing = pending.get()
       if (existing == null) {
+        changes.close()
         debug { "request repeat rejected pending request already cleared" }
         return false
       }
       // Model revisions belong to each target's listener; compare using the original target.
       if (existing.cancelled || existing.target.identity !== target.identity) {
+        changes.close()
         debug { "request repeat rejected cancelled=${existing.cancelled} existingTarget=${existing.target.debugIdentity()} target=${target.debugIdentity()}" }
         return false
       }
       val existingCurrent = existing.target.captureInput()
-      if (existingCurrent != existing.input) {
+      if (existingCurrent == existing.input) {
+        changes.close()
+        // Repeats during the process probe remain native input if that probe finds a running program.
+        if (existing.probing && forwardTabIfBusy) existing.tabs++
+        debug { "request repeat accepted target=${existing.target.debugIdentity()} probing=${existing.probing} tabs=${existing.tabs}" }
+        return true
+      }
+      // The earlier request is for text the user has since replaced, so its answer would be
+      // discarded as stale. Stop waiting for it instead of ignoring the new request until it ends.
+      if (existing.probing || !pending.compareAndSet(existing, request)) {
+        changes.close()
         debug { "request repeat rejected changed input expected=${existing.input.debugSummary()} current=${existingCurrent.debugSummary()}" }
         return false
       }
-      // Repeats during the process probe remain native input if that probe finds a running program.
-      if (existing.probing && forwardTabIfBusy) existing.tabs++
-      debug { "request repeat accepted target=${existing.target.debugIdentity()} probing=${existing.probing} tabs=${existing.tabs}" }
-      return true
+      existing.cancelled = true
+      existing.job?.cancel()
+      debug { "request superseded stale input target=${target.debugIdentity()}" }
     }
     debug { "request accepted target=${target.debugIdentity()} input=${captured.debugSummary()}" }
     // No process probe, cwd lookup, or filesystem collection may inherit EDT/read access.
@@ -160,6 +171,7 @@ class TerminalCompletionService(
         DiagnosticsLog.getInstance().error("Terminal request preparation failed", "${error.javaClass.name}: ${error.message.orEmpty()}")
       }
     }
+    request.job = job
     // Also detach if project disposal cancels the coroutine before its body starts.
     job.invokeOnCompletion {
       try { changes.close() } finally { pending.compareAndSet(request, null) }
@@ -180,6 +192,7 @@ class TerminalCompletionService(
     var tabs: Int,
     var probing: Boolean = true,
     var cancelled: Boolean = false,
+    var job: Job? = null,
   ) {
     fun forwardTabs() {
       val count = tabs
@@ -256,7 +269,7 @@ class TerminalCompletionService(
             ) {
               false
             } else {
-              target.sendIfCurrent(captured, "\u0015$command")
+              target.sendIfCurrent(captured, TerminalLineEditing.replaceLine(context.shell, context.platform, command))
             }
           }
           if (!inserted) {

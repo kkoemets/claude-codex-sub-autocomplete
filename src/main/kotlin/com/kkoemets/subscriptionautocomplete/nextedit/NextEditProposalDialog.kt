@@ -53,6 +53,8 @@ internal class NextEditProposalDialog(
   private val staleRefreshTimer = javax.swing.Timer(STALE_REFRESH_MILLIS) { refreshStaleness() }
 
   init {
+    // A preview the user can keep open while navigating to the target, not a modal prompt.
+    isModal = false
     title = "Related Edit Proposal"
     setResizable(true)
     setCancelButtonText("Close")

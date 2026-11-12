@@ -35,7 +35,13 @@ class TerminalEvalFrameworkTest {
     assertEquals(200, full.size)
     assertEquals(20, quality.map(TerminalEvalCase::category).distinct().size)
     assertTrue(quality.groupingBy(TerminalEvalCase::category).eachCount().values.all { it >= 2 })
-    assertTrue(quality.all { TerminalShellSyntaxChecker.check(it.shell, it.reference) == TerminalSyntaxOutcome.PASSED })
+    // The local check needs the POSIX shells themselves; Windows hosts skip it rather than guess.
+    val expectedSyntax = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
+      TerminalSyntaxOutcome.SKIPPED
+    } else {
+      TerminalSyntaxOutcome.PASSED
+    }
+    assertTrue(quality.all { TerminalShellSyntaxChecker.check(it.shell, it.reference) == expectedSyntax })
   }
 
   @Test

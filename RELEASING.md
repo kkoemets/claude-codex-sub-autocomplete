@@ -147,7 +147,7 @@ Follow JetBrains' [plugin signing instructions](https://plugins.jetbrains.com/do
    ```
 
    This runs the same 50 provider-neutral cases once against the plugin defaults:
-   Claude Haiku and Codex `gpt-5.6-luna` with `low` reasoning. The harness
+   Claude Haiku 5.5 and Codex `gpt-5.6-luna` with `low` reasoning. The harness
    resolves these profiles from `ProviderPolicy`, so release checks track the
    defaults users receive. Each provider must pass at least 45/50
    cases (90%); the release target is 46/50 or better (92%). The critical

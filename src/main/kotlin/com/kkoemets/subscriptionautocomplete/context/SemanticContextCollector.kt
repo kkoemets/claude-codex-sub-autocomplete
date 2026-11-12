@@ -2,7 +2,6 @@ package com.kkoemets.subscriptionautocomplete.context
 
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -23,17 +22,19 @@ class SemanticContextCollector(private val project: Project) {
 
   private fun resolvedDefinitions(leaf: PsiElement, psiFile: PsiFile): List<ContextFragment> {
     val candidates = generateSequence(leaf) { it.parent }.take(5).toList()
-    val projectIndex = ProjectFileIndex.getInstance(project)
+    val filePolicy = ContextFilePolicy(project)
     return try {
       candidates
         .asSequence()
         .flatMap { it.references.asSequence() }
-        .mapNotNull { reference -> runCatching { reference.resolve() }.getOrNull() }
+        .mapNotNull { reference -> nullOnFailure { reference.resolve() } }
         .filter { resolved ->
           val file = resolved.containingFile
           val virtualFile = file?.virtualFile
+          // The same policy as other cross-file context: a symbol resolved into Secrets.kt or a
+          // credentials file must not pull that file's text into the request.
           file != null && file != psiFile && virtualFile != null && resolved.textRange != null &&
-            projectIndex.isInContent(virtualFile)
+            filePolicy.isEligible(virtualFile)
         }
         .distinctBy { it.containingFile?.virtualFile?.path to it.textRange }
         .take(4)

@@ -135,6 +135,14 @@ object SubscriptionCompletionEval {
       )
     }
     val scored = EvalMetrics.score(case, observation, phase, repetition)
+    // Separates a weak model answer from one the cleanup step rejected or trimmed.
+    if (!scored.passed && System.getProperty("eval.printCandidates", "false").toBoolean()) {
+      val response = result
+      println("  expected:  ${case.oracle.reference.visible()}")
+      if (response is BackendResult.Success) println("  raw:       ${response.text.visible()}")
+      if (response is BackendResult.Failure) println("  error:     ${response.message.visible()}")
+      println("  sanitized: ${observation.candidate.visible()}")
+    }
     println(
       "${provider.name.padEnd(6)} ${phase.padEnd(4)} r${repetition.toString().padEnd(2)} " +
         "${case.kind.name.padEnd(22)} ${case.id.padEnd(38)} " +
@@ -146,6 +154,9 @@ object SubscriptionCompletionEval {
     )
     return scored
   }
+
+  private fun String.visible(): String =
+    if (isEmpty()) "<empty>" else replace("\n", "\\n").replace("\t", "\\t").take(400)
 
   private fun selectCases(dataset: EvalDataset, profile: String, requested: String): List<EvalCase> {
     val requestedIds = requested.split(',').map(String::trim).filter(String::isNotBlank).distinct()

@@ -2,6 +2,23 @@
 
 All notable user-facing changes are documented here.
 
+## Unreleased
+
+- Fix "Invalid JSON provided to --settings" on Windows ([#3](https://github.com/kkoemets/claude-codex-sub-autocomplete/issues/3)). Windows dropped the quotes inside the inline settings JSON. Settings and the system prompt now reach Claude Code as files, and every provider process is started with IntelliJ's own Windows argument escaping. This covers native `claude.exe` and npm's `claude.cmd`.
+- Find Windows installations reliably. Prefer `claude.exe` over npm's `.cmd` shim and never pick npm's extensionless shell script. Search the npm, WinGet and per-user install folders, and accept paths pasted with quotes.
+- Report a Claude Code that cannot start, or that answers slowly, as such instead of "not signed in". Tell users to update an outdated Claude Code that rejects an option.
+- Default Claude to Claude Haiku 5.5 and offer only current subscription models: Claude Haiku 5.5, Sonnet 5.5 and Opus 5.5, and Codex GPT-5.6 Luna and GPT-5.6 Terra. Stored Codex models that ChatGPT subscriptions no longer serve are replaced with the default.
+- Clear the `# request` line correctly in Windows PowerShell and cmd, which do not support Ctrl+U, and in bash or fish when the cursor is not at the end of the line.
+- A new terminal request after editing the line replaces the pending one instead of being ignored. Pressing Shift or another modifier no longer discards a pending command.
+- Stop the whole Codex app-server process tree on shutdown. Treat a cancelled startup as a cancellation rather than a failure that forced the slow fallback for five minutes, and no longer lose turn events that arrive early.
+- Keep valid code that the cleanup step used to cut or merge. This includes JSX `cursor-pointer` classes, `List<Cursor>`, comparisons with `cursor`, nested JSON and YAML values, a new statement after a line, and calls whose closing brackets were mistaken for duplicates.
+- Treat `#` as a comment only in languages where it is one. It is not a comment in CSS, Markdown or JavaScript.
+- Stop showing a model's reasoning as ghost text in code. An answer that only reasons about the request is dropped. A reasoning paragraph before the code is removed and the code is kept; previously both were discarded. Sentences inside comments, strings and Markdown are unaffected.
+- Redact credentials in database and other connection URLs, plus Stripe, Google, Slack, AWS session and npm tokens and partial private-key blocks. Ordinary code such as `settings.max`, `getToken()` or Java package names is no longer rewritten before the caret.
+- Fix comment-to-implementation requests on indented lines, the completion hotkey waiting for the typing debounce, and a crash at the very start of a file.
+- Failure balloons repeat at most once a minute per kind of failure instead of only once.
+- Settings reject out-of-range numbers instead of silently changing them. Connection tests use the values on screen without saving them.
+
 ## 0.6.5 — Early Access
 
 - Require an IDE restart for plugin installation, updates, and removal, avoiding the platform's unsafe dynamic reload path.

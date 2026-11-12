@@ -60,7 +60,7 @@ object ProviderModelSafetyGate {
     println("Provider/model editor and terminal safety gate: $checks/$checks passed across ${profiles.size} profiles")
     println(
       "Claude models: ${ProviderPolicy.claudeModels.joinToString()}; " +
-        "Codex models: ${ProviderPolicy.codexFallbackChoices.joinToString()}; " +
+        "Codex models: ${ProviderPolicy.codexModels.joinToString()}; " +
         "Codex efforts: ${ProviderPolicy.codexReasoningEfforts.joinToString()}",
     )
   }
@@ -68,7 +68,7 @@ object ProviderModelSafetyGate {
   internal fun supportedProfiles(): List<ModelProfile> =
     ProviderPolicy.claudeModels.map { model ->
       ModelProfile(ProviderKind.CLAUDE, model, "disabled")
-    } + ProviderPolicy.codexFallbackChoices.flatMap { model ->
+    } + ProviderPolicy.codexModels.flatMap { model ->
       ProviderPolicy.codexReasoningEfforts.map { effort ->
         ModelProfile(ProviderKind.CODEX, model, effort)
       }

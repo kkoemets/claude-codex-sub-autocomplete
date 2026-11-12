@@ -9,6 +9,9 @@ object TerminalShellSyntaxChecker {
       return TerminalSyntaxOutcome.REJECTED
     }
     if (!balanced(command)) return TerminalSyntaxOutcome.REJECTED
+    // A Windows host resolves `bash` to System32's WSL launcher before Git Bash, so a POSIX syntax
+    // check there would report the launcher's failure as a syntax error.
+    if (WINDOWS_HOST) return TerminalSyntaxOutcome.SKIPPED
     val invocation = when (shell.lowercase()) {
       "bash", "sh", "zsh" -> listOf(shell.lowercase(), "-n")
       "fish" -> listOf("fish", "--no-execute")
@@ -60,4 +63,5 @@ object TerminalShellSyntaxChecker {
   }
 
   private const val TIMEOUT_SECONDS = 2L
+  private val WINDOWS_HOST = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
 }

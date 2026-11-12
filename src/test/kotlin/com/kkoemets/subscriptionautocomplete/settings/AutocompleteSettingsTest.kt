@@ -63,26 +63,73 @@ class AutocompleteSettingsTest {
   }
 
   @Test
-  fun `new settings use the pinned Luna low pair by default`() {
+  fun `new settings default to Claude Haiku 5_5 and GPT-5_6 Luna with low reasoning`() {
     val state = AutocompleteSettings.SettingsState()
 
+    assertEquals("claude-haiku-5-5", state.claudeModel)
     assertEquals("gpt-5.6-luna", state.codexModel)
     assertEquals("low", state.codexReasoningEffort)
   }
 
   @Test
-  fun `saved model and effort choices survive a change to the default`() {
+  fun `settings that never stored a Claude model move from the haiku alias to the pinned default`() {
+    // The previous default was never written to disk, so an existing file simply has no model option.
+    val xml = Element("state").addContent(
+      Element("option").setAttribute("name", "settingsVersion").setAttribute("value", "6"),
+    )
+    val settings = AutocompleteSettings()
+    settings.loadState(XmlSerializer.deserialize(xml, AutocompleteSettings.SettingsState::class.java))
+
+    assertEquals("claude-haiku-5-5", settings.state.claudeModel)
+    assertEquals("gpt-5.6-luna", settings.state.codexModel)
+  }
+
+  @Test
+  fun `explicitly stored current models and efforts are retained`() {
     val settings = AutocompleteSettings()
     settings.loadState(
       AutocompleteSettings.SettingsState(
         settingsVersion = 6,
-        codexModel = "gpt-5.3-codex-spark",
+        claudeModel = "sonnet",
+        codexModel = "gpt-5.6-terra",
         codexReasoningEffort = "medium",
       ),
     )
 
-    assertEquals("gpt-5.3-codex-spark", settings.state.codexModel)
+    assertEquals("sonnet", settings.state.claudeModel)
+    assertEquals("gpt-5.6-terra", settings.state.codexModel)
     assertEquals("medium", settings.state.codexReasoningEffort)
+  }
+
+  @Test
+  fun `stored Codex models the subscription retired are replaced with the default pair`() {
+    for (retired in listOf("gpt-5.3-codex-spark", "gpt-5.6-sol", "gpt-5.5", "gpt-5.4", " gpt-5.5 ")) {
+      for (version in listOf(0, 3, 4, 6, 7)) {
+        val settings = AutocompleteSettings()
+        settings.loadState(
+          AutocompleteSettings.SettingsState(
+            settingsVersion = version,
+            codexModel = retired,
+            codexReasoningEffort = "none",
+          ),
+        )
+
+        assertEquals("gpt-5.6-luna", settings.state.codexModel, "$retired at settings version $version")
+        assertEquals("low", settings.state.codexReasoningEffort, "$retired at settings version $version")
+      }
+    }
+  }
+
+  @Test
+  fun `blank stored models fall back to the defaults`() {
+    val settings = AutocompleteSettings()
+    settings.loadState(
+      AutocompleteSettings.SettingsState(claudeModel = " ", codexModel = "", codexReasoningEffort = ""),
+    )
+
+    assertEquals("claude-haiku-5-5", settings.state.claudeModel)
+    assertEquals("gpt-5.6-luna", settings.state.codexModel)
+    assertEquals("low", settings.state.codexReasoningEffort)
   }
 
   @Test
@@ -200,21 +247,6 @@ class AutocompleteSettingsTest {
   }
 
   @Test
-  fun `legacy Spark reasoning remains low because none is unsupported`() {
-    val settings = AutocompleteSettings()
-
-    settings.loadState(
-      AutocompleteSettings.SettingsState(
-        settingsVersion = 3,
-        codexModel = "gpt-5.3-codex-spark",
-        codexReasoningEffort = "low",
-      ),
-    )
-
-    assertEquals("low", settings.state.codexReasoningEffort)
-  }
-
-  @Test
   fun `previous Luna none default migrates to the current default pair`() {
     val settings = AutocompleteSettings()
 
@@ -231,18 +263,18 @@ class AutocompleteSettingsTest {
   }
 
   @Test
-  fun `custom no-reasoning Codex model is preserved during legacy migration`() {
+  fun `explicit no-reasoning choice on a current model is preserved`() {
     val settings = AutocompleteSettings()
 
     settings.loadState(
       AutocompleteSettings.SettingsState(
-        settingsVersion = 4,
-        codexModel = "gpt-5.5",
+        settingsVersion = 6,
+        codexModel = "gpt-5.6-terra",
         codexReasoningEffort = "none",
       ),
     )
 
-    assertEquals("gpt-5.5", settings.state.codexModel)
+    assertEquals("gpt-5.6-terra", settings.state.codexModel)
     assertEquals("none", settings.state.codexReasoningEffort)
   }
 }

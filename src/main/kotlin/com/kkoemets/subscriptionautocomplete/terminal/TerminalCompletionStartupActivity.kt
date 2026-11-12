@@ -123,10 +123,24 @@ internal object TerminalTabKey {
   fun isUnmappedKeyEvent(event: KeyEvent): Boolean =
     event.id != KeyEvent.KEY_TYPED && event.keyCode == KeyEvent.VK_UNDEFINED
 
+  /** Pressing a modifier on its own (for example Shift before a shortcut) edits nothing. */
+  fun isModifierOnlyPress(event: KeyEvent): Boolean = event.keyCode in MODIFIER_KEYS
+
   fun changesInput(event: AWTEvent): Boolean =
     event is java.awt.event.InputMethodEvent || event is KeyEvent &&
-      (event.id == KeyEvent.KEY_PRESSED && !isUnmappedKeyEvent(event) && !isPlainTabPress(event) ||
+      (event.id == KeyEvent.KEY_PRESSED && !isUnmappedKeyEvent(event) && !isPlainTabPress(event) &&
+        !isModifierOnlyPress(event) ||
         event.id == KeyEvent.KEY_TYPED && event.keyChar != '\t')
+
+  private val MODIFIER_KEYS = setOf(
+    KeyEvent.VK_SHIFT,
+    KeyEvent.VK_CONTROL,
+    KeyEvent.VK_ALT,
+    KeyEvent.VK_META,
+    KeyEvent.VK_ALT_GRAPH,
+    KeyEvent.VK_CAPS_LOCK,
+    KeyEvent.VK_WINDOWS,
+  )
 }
 
 /** Consume the typed/released companions only when we took ownership of the press. */

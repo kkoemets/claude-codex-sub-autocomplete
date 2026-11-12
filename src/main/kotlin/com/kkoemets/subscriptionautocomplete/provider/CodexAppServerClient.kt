@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.ArrayDeque
-import java.util.Comparator
 import java.util.LinkedHashSet
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -27,6 +26,7 @@ internal class CodexAppServerClient : AutoCloseable {
   private val unavailableUntil = HashMap<Path, Long>()
   private val availableSessions = ArrayDeque<Session>()
   private val allSessions = LinkedHashSet<Session>()
+  private var closed = false
 
   fun complete(
     executable: Path,
@@ -57,6 +57,7 @@ internal class CodexAppServerClient : AutoCloseable {
   override fun close() {
     sessionLock.lock()
     try {
+      closed = true
       allSessions.toList().forEach(Session::close)
       allSessions.clear()
       availableSessions.clear()
@@ -69,6 +70,8 @@ internal class CodexAppServerClient : AutoCloseable {
   private fun borrowSession(executable: Path, deadline: CompletionDeadline): Session {
     sessionLock.lockInterruptibly()
     try {
+      // After shutdown nothing would ever stop a newly started app-server.
+      if (closed) throw CodexAppServerUnavailableException("Codex app-server client is closed.")
       deadline.remainingMillis("app-server startup")
       while (availableSessions.isNotEmpty()) {
         val candidate = availableSessions.removeFirst()
@@ -232,14 +235,12 @@ internal class CodexAppServerClient : AutoCloseable {
     )
 
     override fun close() {
+      // Stop the whole tree first. Behind a `codex.cmd` launcher the app-server is a grandchild that
+      // outlives its parent, and closing the writer can block while a stuck child holds the pipe.
+      ProcessRunner.terminateProcessTree(process)
       runCatching { writer.close() }
-      if (process.isAlive) {
-        process.destroy()
-        runCatching { process.waitFor(500, TimeUnit.MILLISECONDS) }
-      }
-      if (process.isAlive) process.destroyForcibly()
       failPending(CodexAppServerException("Codex app-server stopped."))
-      deleteWorkspace(workspace)
+      TemporaryWorkspace.delete(workspace)
     }
 
     private fun request(
@@ -310,7 +311,8 @@ internal class CodexAppServerClient : AutoCloseable {
     private fun terminateLeakedRuntimeWorkers() {
       val workers = process.toHandle().descendants()
         .filter { handle ->
-          handle.info().commandLine().orElse("")
+          // Windows reports no command line for other processes, only the executable path.
+          handle.info().commandLine().or { handle.info().command() }.orElse("")
             .replace('\\', '/')
             .contains("/cua_node/bin/node_repl", ignoreCase = true)
         }
@@ -367,33 +369,34 @@ internal class CodexAppServerClient : AutoCloseable {
       }
     }
 
+    /** One unexpected message shape must not stop the reader and, with it, the whole session. */
     private fun handleLine(line: String) {
-      val message = runCatching { JsonParser.parseString(line).asJsonObject }.getOrNull() ?: return
-      val method = message.get("method")?.asString
-      val id = message.get("id")?.takeUnless { it.isJsonNull }
-      when {
-        method != null && id != null -> rejectServerRequest(id, method)
-        id != null -> runCatching { id.asLong }.getOrNull()?.let { requestId ->
-          synchronized(stateLock) { pendingRequests[requestId] }?.complete(message)
+      try {
+        val message = JsonParser.parseString(line).takeIf(JsonElement::isJsonObject)?.asJsonObject ?: return
+        val method = message.string("method")
+        val id = message.get("id")?.takeUnless { it.isJsonNull }
+        when {
+          method != null && id != null -> rejectServerRequest(id, method)
+          id != null -> runCatching { id.asLong }.getOrNull()?.let { requestId ->
+            synchronized(stateLock) { pendingRequests[requestId] }?.complete(message)
+          }
+          method == "item/agentMessage/delta" -> {
+            val params = message.objectOrNull("params") ?: return
+            val turnId = params.string("turnId") ?: return
+            turnRegistry.append(turnId, params.string("delta").orEmpty())
+          }
+          method == "turn/completed" -> completeTurn(message.objectOrNull("params"))
         }
-        method == "item/agentMessage/delta" -> {
-          val params = message.getAsJsonObject("params") ?: return
-          val turnId = params.get("turnId")?.asString ?: return
-          turnRegistry.append(turnId, params.get("delta")?.asString.orEmpty())
-        }
-        method == "turn/completed" -> completeTurn(message.getAsJsonObject("params"))
+      } catch (_: RuntimeException) {
+        // Not a message this client understands.
       }
     }
 
     private fun completeTurn(params: JsonObject?) {
-      val turn = params?.getAsJsonObject("turn") ?: return
-      val turnId = turn.get("id")?.asString ?: return
-      val status = turn.get("status")?.asString ?: "failed"
-      val error = turn.get("error")
-        ?.takeUnless(JsonElement::isJsonNull)
-        ?.asJsonObject
-        ?.get("message")
-        ?.asString
+      val turn = params?.objectOrNull("turn") ?: return
+      val turnId = turn.string("id") ?: return
+      val status = turn.string("status") ?: "failed"
+      val error = turn.objectOrNull("error")?.string("message")
       turnRegistry.complete(turnId, CodexAppServerProtocol.finalAgentText(turn), status, error)
     }
 
@@ -435,11 +438,11 @@ internal class CodexAppServerClient : AutoCloseable {
       fun start(executable: Path, deadline: CompletionDeadline): Session {
         val workspace = Files.createTempDirectory("subscription-autocomplete-codex-server-")
         try {
-          val processBuilder = ProcessBuilder(CodexAppServerProtocol.appServerCommand(executable))
-            .directory(workspace.toFile())
-            .redirectErrorStream(false)
-          BillingEnvironment.subscriptionOnlyCodex(processBuilder.environment())
-          val process = processBuilder.start()
+          val process = ProcessRunner.start(
+            CodexAppServerProtocol.appServerCommand(executable),
+            workspace,
+            BillingEnvironment::subscriptionOnlyCodex,
+          )
           val session = Session(
             executable,
             workspace,
@@ -452,29 +455,30 @@ internal class CodexAppServerClient : AutoCloseable {
           } catch (timeout: CodexPhaseTimeoutException) {
             session.close()
             throw timeout
+          } catch (interrupted: InterruptedException) {
+            // The request was cancelled. That says nothing about the app-server's health, so it must
+            // not start the fallback cooldown or a one-shot run for a request nobody is waiting for.
+            session.close()
+            throw interrupted
           } catch (error: Exception) {
             session.close()
             throw CodexAppServerUnavailableException(error.message ?: "Codex app-server is unavailable.")
           }
         } catch (timeout: CodexPhaseTimeoutException) {
-          deleteWorkspace(workspace)
+          TemporaryWorkspace.delete(workspace)
           throw timeout
+        } catch (interrupted: InterruptedException) {
+          TemporaryWorkspace.delete(workspace)
+          Thread.currentThread().interrupt()
+          throw interrupted
         } catch (error: Exception) {
-          deleteWorkspace(workspace)
+          TemporaryWorkspace.delete(workspace)
           if (error is CodexAppServerUnavailableException) throw error
           throw CodexAppServerUnavailableException(error.message ?: "Codex app-server could not start.")
         }
       }
 
       private const val MAX_STDERR_LINES = 20
-
-      private fun deleteWorkspace(workspace: Path) {
-        runCatching {
-          Files.walk(workspace).use { paths ->
-            paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists)
-          }
-        }
-      }
     }
   }
 
@@ -486,28 +490,55 @@ internal class CodexAppServerClient : AutoCloseable {
   }
 }
 
+/**
+ * Routes turn events from the reader thread to the request that owns the turn.
+ *
+ * The turn ID only becomes known to the requesting thread when it has parsed the `turn/start`
+ * response, while the reader thread is already processing the lines that follow it. Events for a
+ * turn that is not registered yet are therefore kept and replayed on registration; dropping them
+ * lost the start of a completion, or its terminal event, and left the request to time out.
+ */
 internal class TurnRegistry(private val maxIgnoredTurns: Int = 128) {
+  private sealed interface EarlyEvent {
+    data class Delta(val text: String) : EarlyEvent
+    data class Completed(val finalText: String, val status: String, val error: String?) : EarlyEvent
+  }
+
   private val active = HashMap<String, TurnAccumulator>()
   private val ignored = LinkedHashSet<String>()
+  private val early = LinkedHashMap<String, MutableList<EarlyEvent>>()
 
   @Synchronized
   fun register(turnId: String, accumulator: TurnAccumulator) {
     ignored.remove(turnId)
     active[turnId] = accumulator
+    early.remove(turnId)?.forEach { event ->
+      when (event) {
+        is EarlyEvent.Delta -> accumulator.append(event.text)
+        is EarlyEvent.Completed -> accumulator.completeServer(event.finalText, event.status, event.error)
+      }
+    }
   }
 
   @Synchronized
-  fun append(turnId: String, delta: String): Boolean = active[turnId]?.append(delta) ?: false
+  fun append(turnId: String, delta: String): Boolean {
+    active[turnId]?.let { return it.append(delta) }
+    if (turnId !in ignored) keepEarly(turnId, EarlyEvent.Delta(delta))
+    return false
+  }
 
   @Synchronized
   fun complete(turnId: String, finalText: String, status: String, error: String?): Boolean {
     if (ignored.remove(turnId)) return false
-    return active[turnId]?.completeServer(finalText, status, error) ?: false
+    active[turnId]?.let { return it.completeServer(finalText, status, error) }
+    keepEarly(turnId, EarlyEvent.Completed(finalText, status, error))
+    return false
   }
 
   @Synchronized
   fun forget(turnId: String, ignoreLateEvents: Boolean) {
     active.remove(turnId)
+    early.remove(turnId)
     if (!ignoreLateEvents) return
     ignored.add(turnId)
     while (ignored.size > maxIgnoredTurns.coerceAtLeast(1)) {
@@ -520,10 +551,23 @@ internal class TurnRegistry(private val maxIgnoredTurns: Int = 128) {
     active.values.forEach { it.fail(error) }
     active.clear()
     ignored.clear()
+    early.clear()
   }
 
   @Synchronized
   fun activeCount(): Int = active.size
+
+  /** Bounded: an event for a turn that is never registered must not accumulate. */
+  private fun keepEarly(turnId: String, event: EarlyEvent) {
+    val events = early.getOrPut(turnId) { mutableListOf() }
+    if (events.size < MAX_EARLY_EVENTS_PER_TURN) events += event
+    while (early.size > MAX_EARLY_TURNS) early.remove(early.keys.first())
+  }
+
+  private companion object {
+    const val MAX_EARLY_TURNS = 4
+    const val MAX_EARLY_EVENTS_PER_TURN = 256
+  }
 }
 
 internal class TurnAccumulator(private val maxCharacters: Int) {
@@ -706,11 +750,13 @@ internal object CodexAppServerProtocol {
     addProperty("threadId", threadId)
   }
 
-  fun finalAgentText(turn: JsonObject): String = turn.getAsJsonArray("items")
+  fun finalAgentText(turn: JsonObject): String = turn.get("items")
+    ?.takeIf(JsonElement::isJsonArray)
+    ?.asJsonArray
     ?.asSequence()
-    ?.mapNotNull { it.asJsonObject }
-    ?.filter { item -> item.get("type")?.asString in setOf("agentMessage", "agent_message") }
-    ?.mapNotNull { item -> item.get("text")?.asString }
+    ?.mapNotNull { it.takeIf(JsonElement::isJsonObject)?.asJsonObject }
+    ?.filter { item -> item.string("type") in setOf("agentMessage", "agent_message") }
+    ?.mapNotNull { item -> item.string("text") }
     ?.lastOrNull()
     .orEmpty()
 }
@@ -720,3 +766,9 @@ internal open class CodexAppServerException(message: String) : Exception(message
 internal class CodexAppServerUnavailableException(message: String) : CodexAppServerException(message)
 
 internal class CodexPhaseTimeoutException(val phase: String) : CodexAppServerException(phase)
+
+private fun JsonObject.string(name: String): String? =
+  get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+
+private fun JsonObject.objectOrNull(name: String): JsonObject? =
+  get(name)?.takeIf(JsonElement::isJsonObject)?.asJsonObject

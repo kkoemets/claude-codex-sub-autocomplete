@@ -18,16 +18,31 @@ object SubscriptionAuth {
       command = listOf(executable.toString(), "auth", "status"),
       input = "",
       workingDirectory = workingDirectory,
-      timeoutSeconds = 5,
+      timeoutSeconds = STATUS_TIMEOUT_SECONDS,
       environmentTransform = BillingEnvironment::subscriptionOnlyClaude,
     )
-    if (result.exitCode != 0 || result.timedOut) return@cached "Claude Code is not signed in. Run `claude auth login`."
+    claudeAuthError(result)
+  }
+
+  internal fun claudeAuthError(result: ProcessResult): String? {
+    if (result.timedOut) {
+      return "Claude Code did not answer `claude auth status` within $STATUS_TIMEOUT_SECONDS seconds."
+    }
+    // A signed-out CLI exits non-zero but still prints its status; a CLI that could not start does not.
     val status = runCatching { JsonParser.parseString(result.stdout).asJsonObject }.getOrNull()
-      ?: return@cached "Could not verify Claude subscription authentication."
-    val loggedIn = status.get("loggedIn")?.asBoolean == true
-    val authMethod = status.get("authMethod")?.asString.orEmpty().lowercase()
-    val provider = status.get("apiProvider")?.asString.orEmpty().lowercase()
-    if (loggedIn && authMethod == "claude.ai" && provider != "bedrock" && provider != "vertex") {
+      ?: return if (result.exitCode != 0) {
+        val detail = sequenceOf(result.stderr, result.stdout).flatMap { it.lineSequence() }
+          .map(String::trim).lastOrNull(String::isNotEmpty)?.take(300)
+        "Could not run `claude auth status` (exit code ${result.exitCode})" +
+          (detail?.let { ": $it" } ?: ".") + " Check the Claude executable in the plugin settings."
+      } else {
+        "Could not verify Claude subscription authentication."
+      }
+    val loggedIn = status.get("loggedIn")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+    if (!loggedIn || result.exitCode != 0) return "Claude Code is not signed in. Run `claude auth login`."
+    val authMethod = status.get("authMethod")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty().lowercase()
+    val provider = status.get("apiProvider")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty().lowercase()
+    return if (authMethod == "claude.ai" && provider != "bedrock" && provider != "vertex") {
       null
     } else {
       "Claude Code must be signed in through a Claude subscription; API and cloud-provider credentials are disabled."
@@ -43,7 +58,7 @@ object SubscriptionAuth {
       command = listOf(executable.toString(), "login", "status"),
       input = "",
       workingDirectory = workingDirectory,
-      timeoutSeconds = 5,
+      timeoutSeconds = STATUS_TIMEOUT_SECONDS,
       environmentTransform = BillingEnvironment::subscriptionOnlyCodex,
     )
     codexAuthError(result)
@@ -80,6 +95,8 @@ object SubscriptionAuth {
     return probe().also { cache[key] = CachedResult(now, it) }
   }
 
+  // A cold start of a Node-based CLI on Windows can take several seconds while it is being scanned.
+  private const val STATUS_TIMEOUT_SECONDS = 10
   private const val SUCCESS_CACHE_MILLIS = 60_000L
   private const val FAILURE_CACHE_MILLIS = 5_000L
 }

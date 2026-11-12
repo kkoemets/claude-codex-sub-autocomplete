@@ -1,5 +1,6 @@
 package com.kkoemets.subscriptionautocomplete.completion
 
+import com.kkoemets.subscriptionautocomplete.context.nullOnFailure
 import com.intellij.lang.LanguageParserDefinitions
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.application.readAction
@@ -77,7 +78,7 @@ class PsiSyntaxCompletionValidator(private val project: Project) : CompletionRes
     }
   }
 
-  private fun createFile(request: CompletionValidationRequest, text: String): PsiFile? = runCatching {
+  private fun createFile(request: CompletionValidationRequest, text: String): PsiFile? = nullOnFailure {
     PsiFileFactory.getInstance(project).createFileFromText(
       request.fileName,
       request.fileType,
@@ -86,7 +87,7 @@ class PsiSyntaxCompletionValidator(private val project: Project) : CompletionRes
       false,
       false,
     )
-  }.getOrNull()
+  }
 
   private fun errors(file: PsiFile): List<SyntaxErrorFingerprint> =
     PsiTreeUtil.collectElementsOfType(file, PsiErrorElement::class.java).map { error ->

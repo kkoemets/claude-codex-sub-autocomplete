@@ -49,6 +49,8 @@ import javax.swing.JViewport
 class DiagnosticsDialog(
   private val project: Project?,
   modal: Boolean,
+  /** Unsaved values from an open Settings page; tests then use what the user sees, without saving it. */
+  private val settingsOverride: (() -> AutocompleteSettings.SettingsState)? = null,
 ) : DialogWrapper(project, false) {
   private val output = JBTextArea().apply {
     isEditable = false
@@ -114,9 +116,8 @@ class DiagnosticsDialog(
   override fun createActions(): Array<Action> = arrayOf(cancelAction)
 
   private fun runConnectivityTest(liveModel: Boolean) {
-    val settingsService = AutocompleteSettings.getInstance()
-    val provider = settingsService.selectedProvider()
-    val settings = settingsService.state.copy()
+    val settings = settingsOverride?.invoke() ?: AutocompleteSettings.getInstance().snapshot()
+    val provider = settings.selectedProvider()
     setTestRunning(true)
     status.text = if (liveModel) {
       "Testing ${provider.displayName} model ${selectedModel(provider, settings)}…"
@@ -215,8 +216,12 @@ class DiagnosticsDialog(
   companion object {
     private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
-    fun open(project: Project?, modal: Boolean = false) {
-      DiagnosticsDialog(project, modal).show()
+    fun open(
+      project: Project?,
+      modal: Boolean = false,
+      settingsOverride: (() -> AutocompleteSettings.SettingsState)? = null,
+    ) {
+      DiagnosticsDialog(project, modal, settingsOverride).show()
     }
   }
 }

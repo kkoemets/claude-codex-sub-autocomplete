@@ -35,7 +35,7 @@ internal object CompletionIntentClassifier {
     if (mode != CompletionMode.AUTOMATIC) return CompletionIntent.ORDINARY
     val commentPrefix = commentPrefix(languageId) ?: return CompletionIntent.ORDINARY
     val offset = caretOffset.coerceIn(0, text.length)
-    val currentLineStart = text.lastIndexOf('\n', (offset - 1).coerceAtLeast(0))
+    val currentLineStart = text.lastIndexOf('\n', offset - 1)
     if (currentLineStart < 0) return CompletionIntent.ORDINARY
     val currentLine = text.subSequence(currentLineStart + 1, offset).toString()
     if (currentLine.isNotBlank()) return CompletionIntent.ORDINARY
