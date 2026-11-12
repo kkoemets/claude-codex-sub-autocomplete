@@ -102,9 +102,12 @@ object InstalledIdeRuntimeLogGate {
     return logName.matches(name) || name == "stacktrace.txt" || name in setOf("stderr.txt", "stdout.txt")
   }
 
+  /** Line endings are normalised: Windows IDE logs and Windows checkouts of fixtures use CRLF. */
   private fun read(file: Path): String = if (file.fileName.toString().endsWith(".gz")) {
     GZIPInputStream(Files.newInputStream(file)).bufferedReader().use { it.readText() }
-  } else Files.readString(file)
+  } else {
+    Files.readString(file)
+  }.replace("\r\n", "\n")
 
   private fun attributableToPlugin(text: String): Boolean {
     if (pluginPackage.containsMatchIn(text) || pluginBlame.containsMatchIn(text)) return true

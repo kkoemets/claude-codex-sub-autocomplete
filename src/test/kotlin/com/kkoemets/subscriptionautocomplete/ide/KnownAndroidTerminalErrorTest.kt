@@ -9,7 +9,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class KnownAndroidTerminalErrorTest {
-  private val trace = requireNotNull(javaClass.getResource("/ide/android-terminal-lock.txt")).readText().trimEnd()
+  private val trace = requireNotNull(javaClass.getResource("/ide/android-terminal-lock.txt")).readText()
+    .replace("\r\n", "\n").trimEnd()
   private val message = trace.substringBefore("\n\n").substringAfter(": ")
   private val build = KnownAndroidTerminalError.BUILD
 
@@ -26,6 +27,18 @@ class KnownAndroidTerminalErrorTest {
       replace(logs.resolve("errors/error-1/stacktrace.txt"), "\$Proxy231", "\$Proxy999")
       InstalledIdeRuntimeLogGate.scan(logs, build).requireNoBlockingErrors()
     }
+  }
+
+  @Test
+  fun `Windows line endings do not change the accepted incident`() = withIncident { logs ->
+    Files.walk(logs).use { files ->
+      files.filter(Files::isRegularFile).forEach { file ->
+        Files.writeString(file, Files.readString(file).replace("\r\n", "\n").replace("\n", "\r\n"))
+      }
+    }
+    val scan = InstalledIdeRuntimeLogGate.scan(logs, build)
+    assertTrue(scan.pluginErrors.isEmpty() && scan.unrelatedErrors.isEmpty())
+    assertEquals(6, scan.acceptedPlatformErrors.size)
   }
 
   @Test

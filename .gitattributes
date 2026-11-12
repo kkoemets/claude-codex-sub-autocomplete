@@ -1,0 +1,10 @@
+# Fixtures are compared byte for byte or by digest; keep them LF on every checkout.
+src/test/resources/** text eol=lf
+src/test/testData/** text eol=lf
+src/ideTest/resources/** text eol=lf
+*.sh text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+*.jar binary
+*.png binary
+*.gif binary
